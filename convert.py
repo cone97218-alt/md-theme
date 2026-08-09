@@ -300,6 +300,18 @@ def convert_red_to_md3_typesetting(input_path, output_path):
             'titleTopSpacing': int(layout_cfg.get('titleMarginTop', 1))
         }
         
+        # Copy custom fonts (.ttf / .otf) from input archive
+        font_filename = ''
+        for n in zin.namelist():
+            if n.lower().endswith(('.ttf', '.otf')) and not zin.getinfo(n).is_dir():
+                font_filename = os.path.basename(n)
+                safe_write_zip(zout, written_files, font_filename, zin.read(n))
+                break
+
+        if font_filename:
+            read_config['textFont'] = font_filename
+            read_config['titleFont'] = font_filename
+
         safe_write_zip(zout, written_files, 'readConfig.json', json.dumps(read_config, indent=2, ensure_ascii=False).encode('utf-8'))
         print(f"[RED->MD3 Typesetting] Saved to: {output_path}")
 

@@ -793,6 +793,14 @@ document.addEventListener('DOMContentLoaded', () => {
       r.bgBlobUrl = URL.createObjectURL(blob);
     }
 
+    for (const fn of Object.keys(zip.files)) {
+      if (/\.(ttf|otf)$/i.test(fn) && !zip.files[fn].dir) {
+        const baseFn = fn.split('/').pop().split('\\').pop();
+        const blob = await zip.file(fn).async('blob');
+        r.extraFiles[baseFn] = blob;
+      }
+    }
+
     return r;
   }
 
@@ -1294,11 +1302,21 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    // Auto-bind extracted font file to textFont and titleFont if not set
+    let detectedFont = '';
+    if (r.extraFiles) {
+      detectedFont = Object.keys(r.extraFiles).find(fn => /\.(ttf|otf)$/i.test(fn)) || '';
+    }
+
     let readConfig = {};
     if (r.readConfig) {
       readConfig = { ...r.readConfig };
       readConfig.name = name;
       if (bgFilename) readConfig.bgStr = bgFilename;
+      if (detectedFont) {
+        if (!readConfig.textFont) readConfig.textFont = detectedFont;
+        if (!readConfig.titleFont) readConfig.titleFont = detectedFont;
+      }
     } else {
       const l = r.layoutConfig || {};
       readConfig = {
@@ -1362,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "textColor": r.textColor || "#3E3D3B",
         "textColorEInk": "#000000",
         "textColorNight": "#ADADAD",
-        "textFont": "",
+        "textFont": detectedFont || "",
         "textItalic": false,
         "textShadow": false,
         "textSize": parseInt(l.fontSize || 16),
