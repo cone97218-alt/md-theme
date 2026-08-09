@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>阅读美化转换工具 — Morandi Theme Studio</title>
+  <meta name="description" content="将 Reeden (.red) 和 Arc / MD3 (.zip) 美化主题转换为阅读 MD3 格式，支持界面美化与阅读排版美化">
+  
+  <!-- PWA & iOS Web App Desktop Installation Meta Tags -->
+  <meta name="theme-color" content="#f4f1ec">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="莫兰迪美化">
+  
+  <!-- Web App Icons -->
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="lib/jszip.min.js"></script>
+</head>
+<body>
+
+  <!-- ── Top Navigation Bar ─────────────────────────────────── -->
+  <header class="navbar">
+    <div class="navbar-brand">
+      <img src="icon.png" alt="Logo" class="brand-app-icon">
+      <div class="brand-text">
+        <span class="brand-name">Morandi Theme Studio</span>
+        <span class="brand-sub">阅读美化转换工具</span>
+      </div>
+    </div>
+
+    <nav class="navbar-center">
+      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 应用界面美化</span>
+      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 阅读排版美化</span>
+    </nav>
+
+    <div class="navbar-actions">
+      <button class="btn-toggle" id="themeToggleBtn" title="切换日夜模式">
+        <i class="fa-solid fa-sun" id="themeIcon"></i>
+        <span id="themeLabel">日间</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Workspace ────────────────────────────────────────── -->
+  <main class="workspace">
+
+    <!-- ── Left Column: Upload & Controls ── -->
+    <aside class="panel panel-left">
+
+      <!-- Upload Section -->
+      <div class="panel-section">
+        <div class="section-header">
+          <i class="fa-solid fa-folder-open"></i>
+          <span>导入主题文件</span>
+          <span class="pill" id="queueCount">0 个文件</span>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept=".red,.zip" style="display:none">
+          <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+          <p class="drop-title">将主题文件拖放至此</p>
+          <p class="drop-sub">支持 Reeden (.red) 和 Arc / MD3 (.zip)</p>
+          <div class="format-row">
+            <span class="fmt-tag"><i class="fa-solid fa-tag"></i> .red</span>
+            <span class="fmt-tag"><i class="fa-solid fa-tag"></i> .zip</span>
+          </div>
+        </div>
+
+        <!-- File Queue -->
+        <div class="queue" id="queueList"></div>
+      </div>
+
+      <!-- Export Name Customization -->
+      <div class="panel-section">
+        <div class="section-header">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span>导出参数设置</span>
+        </div>
+
+        <div class="form-stack">
+          <div class="form-row">
+            <label class="form-label" for="themeNameInput">
+              <i class="fa-solid fa-signature"></i> 导出主题名称
+            </label>
+            <input type="text" id="themeNameInput" class="form-input" placeholder="自定义导出名称（留空则自动提取原名称）">
+          </div>
+        </div>
+      </div>
+
+      <!-- Convert Action Buttons -->
+      <div class="panel-section panel-footer">
+        <div class="action-buttons-group">
+          <button class="btn-convert" id="convertBtn" disabled>
+            <i class="fa-solid fa-box-archive"></i>
+            <span>导出 MD3 美化包 (.zip)</span>
+          </button>
+          
+          <div class="split-buttons" id="splitExportButtons" style="display: none; gap: 8px; margin-top: 8px;">
+            <button class="btn-secondary" id="exportUiBtn" style="flex: 1;">
+              <i class="fa-solid fa-mobile"></i> 仅界面美化
+            </button>
+            <button class="btn-secondary" id="exportReaderBtn" style="flex: 1;">
+              <i class="fa-solid fa-book-open-reader"></i> 仅排版美化
+            </button>
+          </div>
+        </div>
+
+        <p class="hint-text"><i class="fa-solid fa-shield-halved"></i> 100% 本地计算，不上传任何文件</p>
+      </div>
+
+    </aside>
+
+    <!-- ── Right Column: Phone Preview ── -->
+    <section class="panel panel-right">
+
+      <div class="preview-header">
+        <div class="section-header" style="flex:1">
+          <i class="fa-solid fa-mobile-screen"></i>
+          <span>效果实时预览</span>
+        </div>
+        <button class="btn-toggle" id="mockupModeBtn" title="切换预览日夜">
+          <i class="fa-solid fa-sun" id="mockupModeIcon"></i>
+          <span id="mockupModeLabel">日间视图</span>
+        </button>
+      </div>
+
+      <!-- Preview Tab Switcher -->
+      <div class="preview-tabs">
+        <button class="tab-btn active" data-tab="preview">
+          <i class="fa-solid fa-layer-group"></i> 应用界面
+        </button>
+        <button class="tab-btn" data-tab="reader">
+          <i class="fa-solid fa-book-open-reader"></i> 阅读排版
+        </button>
+        <button class="tab-btn" data-tab="covers">
+          <i class="fa-solid fa-images"></i> 封面图库
+        </button>
+        <button class="tab-btn" data-tab="metadata">
+          <i class="fa-solid fa-palette"></i> 色彩与排版
+        </button>
+      </div>
+
+      <!-- Phone Mockup -->
+      <div class="phone-wrapper">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+
+          <div class="phone-screen" id="phoneScreen">
+
+            <!-- Status Bar -->
+            <div class="phone-statusbar" id="phoneStatusbar">
+              <span>09:41</span>
+              <div class="sb-right">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-three-quarters"></i>
+              </div>
+            </div>
+
+            <!-- App TopBar (UI Tab) -->
+            <div class="phone-topbar" id="phoneTopbar">
+              <span class="phone-title" id="previewTitle">阅读 MD3</span>
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+
+            <!-- Scrollable Content Container -->
+            <div class="phone-content" id="phoneContent">
+
+              <!-- Tab 1: App UI Layout Preview -->
+              <div class="tab-pane" id="tabPreview">
+                <div class="bookshelf-tabs">
+                  <span class="bs-tab active">在读</span>
+                  <span class="bs-tab">未读</span>
+                  <span class="bs-tab">完结</span>
+                  <span class="bs-tab">分类</span>
+                </div>
+
+                <div class="book-card">
+                  <div class="book-cover-placeholder" id="cover0Wrap">
+                    <i class="fa-solid fa-book-open"></i>
+                  </div>
+                  <div class="book-info">
+                    <div class="book-title" id="bookTitle0">示例图书 A</div>
+                    <div class="book-author" id="bookAuthor0">示例作者 A</div>
+                    <div class="book-progress">
+                      <div class="progress-bar"><div class="progress-fill" style="width:42%"></div></div>
+                      <span>42%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="book-card" style="margin-top:10px">
+                  <div class="book-cover-placeholder" id="cover1Wrap">
+                    <i class="fa-solid fa-book"></i>
+                  </div>
+                  <div class="book-info">
+                    <div class="book-title" id="bookTitle1">示例图书 B</div>
+                    <div class="book-author" id="bookAuthor1">示例作者 B</div>
+                    <div class="book-progress">
+                      <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                      <span>未读</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 2: Reader Typesetting Preview -->
+              <div class="tab-pane" id="tabReader" style="display:none; height:100%; width:100%;">
+                <div class="reader-screen" id="readerScreen">
+                  <div class="reader-header" id="readerHeader">
+                    <span id="readerChapter">第一章 序章</span>
+                    <span id="readerTime">09:41</span>
+                  </div>
+
+                  <div class="reader-body" id="readerBody">
+                    <h3 id="readerTitleText" class="reader-chapter-title">第一章 序章</h3>
+                    <p id="readerPara1" class="reader-p">文字在静谧的纸页上缓缓延展，低饱和的莫兰迪色彩抚平了浮躁。每一行排版与间距都流淌着温润惬意的阅读节奏。</p>
+                    <p id="readerPara2" class="reader-p">行间距、段落间距与字体色彩相互映衬，营造出细腻沉静的阅读氛围。纸张背景与字号大小浑然一体。</p>
+                    <p id="readerPara3" class="reader-p">时光沉淀于字里行间，在专注的呼吸中感受排版美化带来的纯粹体验。</p>
+                  </div>
+
+                  <div class="reader-footer" id="readerFooter">
+                    <span id="readerBookName">示例图书</span>
+                    <span id="readerProgress">12 / 345 页 (4%)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 3: Cover Gallery -->
+              <div class="tab-pane" id="tabCovers" style="display:none">
+                <div class="gallery-grid" id="galleryGrid">
+                  <div class="gallery-empty">
+                    <i class="fa-regular fa-image"></i>
+                    <span>暂无书单封面</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 4: Color & Layout Metadata -->
+              <div class="tab-pane" id="tabMetadata" style="display:none">
+                <div class="meta-list" id="metadataBox">
+                  <div class="meta-row">
+                    <span class="meta-key">格式与包含内容</span>
+                    <span class="meta-val" id="metaType">未载入</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">主色调 (Light)</span>
+                    <div class="meta-color-row">
+                      <div class="color-swatch" id="swatchPrimary"></div>
+                      <span class="meta-val" id="metaPrimary">#—</span>
+                    </div>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">主色调 (Dark)</span>
+                    <div class="meta-color-row">
+                      <div class="color-swatch" id="swatchPrimaryDark"></div>
+                      <span class="meta-val" id="metaPrimaryDark">#—</span>
+                    </div>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">卡片背景色</span>
+                    <div class="meta-color-row">
+                      <div class="color-swatch" id="swatchCard"></div>
+                      <span class="meta-val" id="metaCard">#—</span>
+                    </div>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">界面背景图</span>
+                    <span class="meta-val" id="metaBg">无</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">排版文字颜色</span>
+                    <div class="meta-color-row">
+                      <div class="color-swatch" id="swatchReaderText"></div>
+                      <span class="meta-val" id="metaReaderText">#—</span>
+                    </div>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">排版背景/字体</span>
+                    <span class="meta-val" id="metaReaderBg">无</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">导航图标</span>
+                    <span class="meta-val" id="metaNavIcons">0/5</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">封面图数量</span>
+                    <span class="meta-val" id="metaCovers">0 张</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Floating Bottom Nav (UI Tab) -->
+            <div class="phone-navbar" id="phoneNavBar">
+              <div class="nav-item">
+                <div class="nav-icon-wrap" id="navHome">
+                  <i class="fa-solid fa-house"></i>
+                </div>
+                <span>首页</span>
+              </div>
+              <div class="nav-item active">
+                <div class="nav-icon-wrap" id="navBookshelf">
+                  <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <span>书架</span>
+              </div>
+              <div class="nav-item">
+                <div class="nav-icon-wrap" id="navExplore">
+                  <i class="fa-solid fa-compass"></i>
+                </div>
+                <span>发现</span>
+              </div>
+              <div class="nav-item">
+                <div class="nav-icon-wrap" id="navRss">
+                  <i class="fa-solid fa-rss"></i>
+                </div>
+                <span>订阅</span>
+              </div>
+              <div class="nav-item">
+                <div class="nav-icon-wrap" id="navMy">
+                  <i class="fa-solid fa-circle-user"></i>
+                </div>
+                <span>我的</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────── -->
+  <footer class="footer">
+    <span><i class="fa-solid fa-lock"></i> 全程本地离线运行，隐私保护</span>
+    <span><i class="fa-regular fa-copyright"></i> 2026 Morandi Theme Studio</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

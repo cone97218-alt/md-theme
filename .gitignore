@@ -1,0 +1,10 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Local converted test zip files
+*.zip
+
+# OS metadata
+.DS_Store
+Thumbs.db

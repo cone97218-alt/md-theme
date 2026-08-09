@@ -1,0 +1,18 @@
+{
+  "name": "Morandi Theme Studio — 阅读美化转换工具",
+  "short_name": "莫兰迪美化",
+  "description": "将 Reeden (.red) 和 Arc / MD3 (.zip) 美化主题转换为阅读 MD3 格式",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f1ec",
+  "theme_color": "#f4f1ec",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
