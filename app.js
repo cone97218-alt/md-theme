@@ -1109,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     convertBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>正在导出中…</span>';
 
     try {
-      const name = activeItem.customName || (themeNameInput ? themeNameInput.value.trim() : '') || activeItem.name;
+      const name = getItemExportName(activeItem);
       const fullBlob = await generateMd3FullBlob(activeItem);
       if (fullBlob) {
         const typeSuffix = (activeItem.hasUi && activeItem.hasReader) ? '全套美化' : activeItem.hasUi ? '界面美化' : '阅读排版';
@@ -1207,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
           batchExportLabel.textContent = `正在批量导出 (${count}/${itemsToExport.length})…`;
         }
         try {
-          const name = item.customName || item.parsedUi?.name || item.parsedReader?.name || item.name;
+          const name = getItemExportName(item);
           let exportBlob = null;
           let filename = '';
 
@@ -1308,13 +1308,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function getItemExportName(item) {
+    if (!item) return 'MD3美化包';
+    if (item.customName && item.customName.trim()) {
+      return item.customName.trim();
+    }
+    if (item.id === state.activeId && themeNameInput && themeNameInput.value.trim()) {
+      return themeNameInput.value.trim();
+    }
+    if (item.parsedUi && item.parsedUi.name) return item.parsedUi.name;
+    if (item.parsedReader && item.parsedReader.name) return item.parsedReader.name;
+    return item.name ? item.name.replace(/\.(red|zip)$/i, '') : 'MD3美化包';
+  }
+
   // Generate MD3 App UI Theme Blob
   async function generateMd3UiBlob(item) {
     const d         = item.parsedUi;
     if (!d) return null;
 
     const zip       = new JSZip();
-    const name      = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || d.name;
+    const name      = getItemExportName(item);
     const assetsMap = {};
 
     if (d.bgBlob) {
@@ -1369,7 +1382,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function exportMd3Ui(item) {
     const d = item.parsedUi;
     if (!d) return;
-    const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || d.name;
+    const name = getItemExportName(item);
     const blob = await generateMd3UiBlob(item);
     if (blob) downloadBlob(blob, `${name}_界面美化.md3.zip`);
   }
@@ -1380,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!r) return null;
 
     const zip = new JSZip();
-    const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || r.name;
+    const name = getItemExportName(item);
     let bgFilename = '';
 
     if (r.bgBlob) {
