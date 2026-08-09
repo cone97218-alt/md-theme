@@ -130,9 +130,27 @@
             </button>
           </div>
 
+          <!-- Batch Export Target Segment Control -->
+          <div class="batch-export-options" id="batchExportOptions" style="display: none; margin-top: 10px;">
+            <div style="font-size: 11px; color: var(--txt-mid); margin-bottom: 6px; font-weight: 600;">
+              <i class="fa-solid fa-sliders" style="color: var(--dusty);"></i> 批量导出包含内容：
+            </div>
+            <div class="batch-mode-group" id="batchModeGroup">
+              <button class="batch-mode-btn active" data-mode="full">
+                <i class="fa-solid fa-layer-group"></i> 全套美化
+              </button>
+              <button class="batch-mode-btn" data-mode="ui">
+                <i class="fa-solid fa-mobile"></i> 仅界面
+              </button>
+              <button class="batch-mode-btn" data-mode="reader">
+                <i class="fa-solid fa-book-open-reader"></i> 仅排版
+              </button>
+            </div>
+          </div>
+
           <button class="btn-secondary" id="batchExportBtn" style="display: none; width: 100%; margin-top: 8px; border-color: var(--dusty); color: var(--txt); background: rgba(143,166,186,0.15);">
             <i class="fa-solid fa-boxes-packing"></i>
-            <span id="batchExportLabel">📦 批量导出全部美化包 (0/0)</span>
+            <span id="batchExportLabel">📦 批量导出全部美化包 (全套 - 0个)</span>
           </button>
 
           <button class="btn-secondary" id="wakeAppBtn" style="width: 100%; margin-top: 8px; border-color: var(--sage); color: var(--sage-dk);">

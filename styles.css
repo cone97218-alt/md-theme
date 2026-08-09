@@ -449,6 +449,46 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   padding: 10px;
 }
 
+/* ── Batch Export Options ─────────────────────────────────────── */
+.batch-mode-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-alt);
+  padding: 4px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-mid);
+}
+
+.batch-mode-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--txt-mid);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all var(--t);
+}
+
+.batch-mode-btn:hover {
+  color: var(--txt);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.batch-mode-btn.active {
+  background: var(--surface);
+  color: var(--dusty-dk);
+  font-weight: 600;
+  border-color: var(--dusty);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
 .download-list {
   display: flex;
   flex-direction: column;

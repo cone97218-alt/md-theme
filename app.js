@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTab: 'preview',
     mobileTab: 'controls', // 'controls' | 'preview'
     queue: [],           // Array of QueueItem
-    activeId: null
+    activeId: null,
+    batchMode: 'full'
   };
 
   // ── DOM Refs ────────────────────────────────────────────────────
@@ -411,13 +412,24 @@ document.addEventListener('DOMContentLoaded', () => {
       convertBtn.disabled = state.queue.length === 0;
       splitExportButtons.style.display = 'none';
     }
+    const batchExportOptions = $('batchExportOptions');
     const batchExportBtn = $('batchExportBtn');
     const batchExportLabel = $('batchExportLabel');
-    if (batchExportBtn && batchExportLabel) {
+
+    if (batchExportOptions && batchExportBtn && batchExportLabel) {
       if (state.queue.length > 1) {
+        batchExportOptions.style.display = 'block';
         batchExportBtn.style.display = 'block';
-        batchExportLabel.textContent = `📦 批量导出队列中全部美化包 (${state.queue.length}个)`;
+        const mode = state.batchMode || 'full';
+        const modeText = mode === 'ui' ? '仅界面' : mode === 'reader' ? '仅排版' : '全套';
+        const targetItems = state.queue.filter(q => {
+          if (mode === 'ui') return q.hasUi;
+          if (mode === 'reader') return q.hasReader;
+          return q.hasUi || q.hasReader;
+        });
+        batchExportLabel.textContent = `📦 批量导出全部美化包 (${modeText} - ${targetItems.length}个)`;
       } else {
+        batchExportOptions.style.display = 'none';
         batchExportBtn.style.display = 'none';
       }
     }
@@ -1127,16 +1139,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const batchModeGroup = $('batchModeGroup');
+  if (batchModeGroup) {
+    batchModeGroup.querySelectorAll('.batch-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        batchModeGroup.querySelectorAll('.batch-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.batchMode = btn.dataset.mode || 'full';
+        renderQueue();
+      });
+    });
+  }
+
   const batchExportBtn = $('batchExportBtn');
   const batchExportLabel = $('batchExportLabel');
   if (batchExportBtn) {
     batchExportBtn.addEventListener('click', async () => {
-      const itemsToExport = state.queue.filter(q => q.hasUi || q.hasReader);
+      const mode = state.batchMode || 'full';
+      const itemsToExport = state.queue.filter(q => {
+        if (mode === 'ui') return q.hasUi;
+        if (mode === 'reader') return q.hasReader;
+        return q.hasUi || q.hasReader;
+      });
       if (!itemsToExport.length) return;
 
       batchExportBtn.disabled = true;
       let count = 0;
       const masterZip = new JSZip();
+      const modeName = mode === 'ui' ? '仅界面' : mode === 'reader' ? '仅排版' : '全套';
 
       for (const item of itemsToExport) {
         count++;
@@ -1145,12 +1175,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
           const name = item.customName || item.parsedUi?.name || item.parsedReader?.name || item.name;
-          const fullBlob = await generateMd3FullBlob(item);
-          if (fullBlob) {
+          let exportBlob = null;
+          let filename = '';
+
+          if (mode === 'ui') {
+            exportBlob = await generateMd3UiBlob(item);
+            filename = `${name}_界面美化.md3.zip`;
+          } else if (mode === 'reader') {
+            exportBlob = await generateMd3ReaderBlob(item);
+            filename = `${name}_阅读排版.md3.zip`;
+          } else {
+            exportBlob = await generateMd3FullBlob(item);
             const typeSuffix = (item.hasUi && item.hasReader) ? '全套美化' : item.hasUi ? '界面美化' : '阅读排版';
-            const filename = `${name}_${typeSuffix}.md3.zip`;
-            masterZip.file(filename, fullBlob);
-            addDownloadLinkCard(filename, URL.createObjectURL(fullBlob));
+            filename = `${name}_${typeSuffix}.md3.zip`;
+          }
+
+          if (exportBlob) {
+            masterZip.file(filename, exportBlob);
+            addDownloadLinkCard(filename, URL.createObjectURL(exportBlob));
           }
           item.status = 'done';
         } catch (err) {
@@ -1161,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const masterBlob = await masterZip.generateAsync({ type: 'blob' });
-        downloadBlob(masterBlob, `MD3美化包_批量合集(${itemsToExport.length}个主题).zip`);
+        downloadBlob(masterBlob, `MD3美化包_批量合集_${modeName}(${itemsToExport.length}个主题).zip`);
       } catch(e){
         console.error('[Master Zip Error]', e);
       }
@@ -1172,7 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tipBox = $('importTipBox');
       if (tipBox) {
         tipBox.style.display = 'block';
-        tipBox.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--sage);"></i> <b>批量导出完成！</b><br>已成功将 ${itemsToExport.length} 个美化包打包为<b>【批量合集.zip】</b>。直接确认下载此合集解压即可，也可在下方列表单独点击下载！`;
+        tipBox.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--sage);"></i> <b>批量导出完成！</b><br>已成功将 ${itemsToExport.length} 个美化包（${modeName}）打包为<b>【批量合集.zip】</b>。直接确认下载此合集解压即可，也可在下方列表单独点击下载！`;
       }
     });
   }
