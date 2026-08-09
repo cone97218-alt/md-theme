@@ -1219,11 +1219,16 @@ document.addEventListener('DOMContentLoaded', () => {
       assetsMap['background.light'] = 'assets/background/light.jpg';
     }
 
-    Object.keys(d.navIconsBlobs).forEach(key => {
-      const p = `assets/navigation/${key}.png`;
-      zip.file(p, d.navIconsBlobs[key].blob);
-      assetsMap[`navigation.${key}`] = p;
-    });
+    if (d.navIconsBlobs) {
+      Object.keys(d.navIconsBlobs).forEach(key => {
+        const iconObj = d.navIconsBlobs[key];
+        if (iconObj && iconObj.blob) {
+          const p = `assets/navigation/${key}.png`;
+          zip.file(p, iconObj.blob);
+          assetsMap[`navigation.${key}`] = p;
+        }
+      });
+    }
 
     if (d.fontBlob) {
       zip.file('assets/fonts/app.ttf', d.fontBlob);
@@ -1231,14 +1236,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const coverAlbums = [];
-    if (d.coversBlobs.length) {
+    if (d.coversBlobs && d.coversBlobs.length) {
       const lightImages = [];
       d.coversBlobs.forEach((c, i) => {
-        const p = `cover-albums/album_0/light/image_${i}.png`;
-        zip.file(p, c.blob);
-        lightImages.push({ path: p });
+        if (c && c.blob) {
+          const p = `cover-albums/album_0/light/image_${i}.png`;
+          zip.file(p, c.blob);
+          lightImages.push({ path: p });
+        }
       });
-      coverAlbums.push({ darkImages: [], lightImages, name, ref: 'album_0' });
+      if (lightImages.length) {
+        coverAlbums.push({ darkImages: [], lightImages, name, ref: 'album_0' });
+      }
     }
 
     const manifest = {
@@ -1278,7 +1287,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (r.extraFiles) {
       Object.keys(r.extraFiles).forEach(fn => {
-        zip.file(fn, r.extraFiles[fn]);
+        const fileContent = r.extraFiles[fn];
+        if (fileContent && (fileContent instanceof Blob || fileContent instanceof ArrayBuffer || typeof fileContent === 'string')) {
+          zip.file(fn, fileContent);
+        }
       });
     }
 
