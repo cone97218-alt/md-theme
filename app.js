@@ -856,15 +856,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function wakeLegadoApp(targetType = 'all') {
+    const tipBox = $('importTipBox');
+    if (tipBox) tipBox.style.display = 'block';
+
+    const activeItem = state.queue.find(q => q.id === state.activeId);
+    if (targetType === 'all' && activeItem) {
+      if (activeItem.hasReader && !activeItem.hasUi) targetType = 'reader';
+      else if (activeItem.hasUi && !activeItem.hasReader) targetType = 'ui';
+    }
+
+    const schemes = [];
+    if (targetType === 'ui') {
+      schemes.push(
+        'legado://import/theme',
+        'legado://theme/import',
+        'intent://import/theme#Intent;scheme=legado;package=io.legado.app.md3;end',
+        'intent://import/theme#Intent;scheme=legado;package=com.gedoor.app.book;end',
+        'legado://import/online',
+        'legado://'
+      );
+    } else if (targetType === 'reader') {
+      schemes.push(
+        'legado://import/readConfig',
+        'legado://readConfig/import',
+        'intent://import/readConfig#Intent;scheme=legado;package=io.legado.app.md3;end',
+        'intent://import/readConfig#Intent;scheme=legado;package=com.gedoor.app.book;end',
+        'legado://import/online',
+        'legado://'
+      );
+    } else {
+      schemes.push(
+        'legado://import/theme',
+        'legado://import/readConfig',
+        'legado://import/online',
+        'intent://import/online#Intent;scheme=legado;package=io.legado.app.md3;end',
+        'legado://'
+      );
+    }
+
+    let idx = 0;
+    function tryNext() {
+      if (idx < schemes.length) {
+        window.location.href = schemes[idx++];
+        setTimeout(tryNext, 350);
+      }
+    }
+    tryNext();
+  }
+
   const wakeAppBtn = $('wakeAppBtn');
   if (wakeAppBtn) {
     wakeAppBtn.addEventListener('click', () => {
-      const tipBox = $('importTipBox');
-      if (tipBox) tipBox.style.display = 'block';
-      window.location.href = 'legado://';
-      setTimeout(() => {
-        window.location.href = 'intent://io.legado.app.md3#Intent;scheme=legado;package=io.legado.app.md3;end';
-      }, 500);
+      wakeLegadoApp('all');
     });
   }
 
