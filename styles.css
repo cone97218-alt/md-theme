@@ -701,50 +701,112 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   background: #f4f1ec;
   background-size: cover;
   background-position: center;
-  transition: background 0.3s;
+  transition: background 0.3s, color 0.3s;
   position: relative;
 }
 
+/* ── Mockup Light Mode ───────────────────────────────────────── */
+.phone-screen[data-mockup-mode="light"],
+.phone-screen:not([data-mockup-mode="dark"]) {
+  background-color: #f4f1ec;
+  color: #2c2a27;
+}
+
+.phone-screen[data-mockup-mode="light"] .phone-statusbar,
+.phone-screen:not([data-mockup-mode="dark"]) .phone-statusbar {
+  color: #2c2a27;
+}
+
+.phone-screen[data-mockup-mode="light"] .phone-topbar,
+.phone-screen:not([data-mockup-mode="dark"]) .phone-topbar {
+  background: rgba(255,255,255,0.65);
+  color: #2c2a27;
+}
+
+.phone-screen[data-mockup-mode="light"] .bs-tab,
+.phone-screen:not([data-mockup-mode="dark"]) .bs-tab {
+  color: #968e84;
+}
+
+.phone-screen[data-mockup-mode="light"] .book-card,
+.phone-screen:not([data-mockup-mode="dark"]) .book-card {
+  background: rgba(255,255,255,0.75);
+  color: #2c2a27;
+}
+
+.phone-screen[data-mockup-mode="light"] .book-title,
+.phone-screen:not([data-mockup-mode="dark"]) .book-title {
+  color: #2c2a27;
+}
+
+.phone-screen[data-mockup-mode="light"] .book-author,
+.phone-screen[data-mockup-mode="light"] .book-progress,
+.phone-screen:not([data-mockup-mode="dark"]) .book-author,
+.phone-screen:not([data-mockup-mode="dark"]) .book-progress {
+  color: #968e84;
+}
+
+.phone-screen[data-mockup-mode="light"] .phone-navbar,
+.phone-screen:not([data-mockup-mode="dark"]) .phone-navbar {
+  background: rgba(255,255,255,0.80);
+}
+
+.phone-screen[data-mockup-mode="light"] .nav-icon-wrap,
+.phone-screen[data-mockup-mode="light"] .nav-item span,
+.phone-screen:not([data-mockup-mode="dark"]) .nav-icon-wrap,
+.phone-screen:not([data-mockup-mode="dark"]) .nav-item span {
+  color: #968e84;
+}
+
+/* ── Mockup Dark Mode ────────────────────────────────────────── */
 .phone-screen[data-mockup-mode="dark"] {
   background-color: #1e2428;
+  color: #e8e4de;
 }
 
-/* ── Phone Internal UI ────────────────────────────────────────── */
-.phone-statusbar {
-  height: 44px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 0 20px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: inherit;
-  z-index: 20;
-  position: relative;
-}
-
-.sb-right {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-}
-
-.phone-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: rgba(255,255,255,0.45);
-  backdrop-filter: blur(12px);
-  font-size: 14px;
-  font-weight: 700;
-  z-index: 10;
-  transition: background 0.3s;
+.phone-screen[data-mockup-mode="dark"] .phone-statusbar {
+  color: #e8e4de;
 }
 
 .phone-screen[data-mockup-mode="dark"] .phone-topbar {
-  background: rgba(37,44,50,0.6);
+  background: rgba(37,44,50,0.85);
+  color: #ffffff;
+}
+
+.phone-screen[data-mockup-mode="dark"] .bs-tab {
+  color: #a0988e;
+}
+
+.phone-screen[data-mockup-mode="dark"] .bs-tab.active {
+  color: var(--sage);
+}
+
+.phone-screen[data-mockup-mode="dark"] .book-card {
+  background: rgba(44,52,58,0.85);
+  color: #e8e4de;
+}
+
+.phone-screen[data-mockup-mode="dark"] .book-title {
+  color: #ffffff;
+}
+
+.phone-screen[data-mockup-mode="dark"] .book-author,
+.phone-screen[data-mockup-mode="dark"] .book-progress {
+  color: #b0a89e;
+}
+
+.phone-screen[data-mockup-mode="dark"] .phone-navbar {
+  background: rgba(37,44,50,0.90);
+}
+
+.phone-screen[data-mockup-mode="dark"] .nav-icon-wrap,
+.phone-screen[data-mockup-mode="dark"] .nav-item span {
+  color: #b0a89e;
+}
+
+.phone-screen[data-mockup-mode="dark"] .nav-item.active .nav-icon-wrap,
+.phone-screen[data-mockup-mode="dark"] .nav-item.active span {
+  color: var(--sage);
 }
 
 .phone-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
