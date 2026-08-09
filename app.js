@@ -77,6 +77,174 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // ── IndexedDB 10-Minute Persistent Caching ────────────────────────
+  const DB_NAME = 'MorandiStudioDB';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'appCache';
+  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function saveCacheState() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+
+      const itemsToCache = state.queue.map(item => ({
+        id: item.id,
+        name: item.name,
+        rawType: item.rawType,
+        hasUi: item.hasUi,
+        hasReader: item.hasReader,
+        status: item.status,
+        fileBlob: item.file,
+        parsedUiData: item.parsedUi ? serializeParsedUi(item.parsedUi) : null,
+        parsedReaderData: item.parsedReader ? serializeParsedReader(item.parsedReader) : null
+      }));
+
+      const cacheData = {
+        id: 'current_session',
+        timestamp: Date.now(),
+        activeId: state.activeId,
+        themeName: themeNameInput ? themeNameInput.value : '',
+        items: itemsToCache
+      };
+
+      store.put(cacheData);
+    } catch(e) {
+      console.warn('[Cache Save Error]', e);
+    }
+  }
+
+  async function loadCacheState() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get('current_session');
+
+      req.onsuccess = async () => {
+        const cache = req.result;
+        if (!cache || !cache.timestamp || !cache.items || !cache.items.length) return;
+
+        const age = Date.now() - cache.timestamp;
+        if (age > CACHE_TTL_MS) {
+          console.log('[Cache Expired]', age / 1000, 'seconds');
+          clearCacheState();
+          return;
+        }
+
+        state.queue = [];
+        for (const cachedItem of cache.items) {
+          const item = {
+            id: cachedItem.id,
+            file: cachedItem.fileBlob,
+            name: cachedItem.name,
+            rawType: cachedItem.rawType,
+            hasUi: cachedItem.hasUi,
+            hasReader: cachedItem.hasReader,
+            status: cachedItem.status,
+            parsedUi: cachedItem.parsedUiData ? deserializeParsedUi(cachedItem.parsedUiData) : null,
+            parsedReader: cachedItem.parsedReaderData ? deserializeParsedReader(cachedItem.parsedReaderData) : null
+          };
+          state.queue.push(item);
+        }
+
+        if (cache.themeName && themeNameInput) themeNameInput.value = cache.themeName;
+        state.activeId = cache.activeId || (state.queue[0] ? state.queue[0].id : null);
+
+        renderQueue();
+        if (state.activeId) selectItem(state.activeId);
+
+        showCacheRestoredToast(Math.ceil((CACHE_TTL_MS - age) / 60000));
+      };
+    } catch(e) {
+      console.warn('[Cache Load Error]', e);
+    }
+  }
+
+  async function clearCacheState() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete('current_session');
+    } catch(e){}
+  }
+
+  function serializeParsedUi(d) {
+    return {
+      name: d.name, type: d.type, primaryColor: d.primaryColor, primaryColorDark: d.primaryColorDark,
+      cardColor: d.cardColor, cardColorDark: d.cardColorDark, bgBlob: d.bgBlob,
+      navIconsBlobs: d.navIconsBlobs, coversBlobs: d.coversBlobs, fontBlob: d.fontBlob
+    };
+  }
+
+  function deserializeParsedUi(d) {
+    const ui = {
+      name: d.name, type: d.type, primaryColor: d.primaryColor, primaryColorDark: d.primaryColorDark,
+      cardColor: d.cardColor, cardColorDark: d.cardColorDark, bgBlob: d.bgBlob,
+      bgBlobUrl: d.bgBlob ? URL.createObjectURL(d.bgBlob) : null, navIconsBlobs: {}, coversBlobs: [], fontBlob: d.fontBlob
+    };
+
+    if (d.navIconsBlobs) {
+      Object.keys(d.navIconsBlobs).forEach(k => {
+        const item = d.navIconsBlobs[k];
+        if (item && item.blob) {
+          ui.navIconsBlobs[k] = { blob: item.blob, url: URL.createObjectURL(item.blob) };
+        }
+      });
+    }
+
+    if (d.coversBlobs) {
+      d.coversBlobs.forEach(c => {
+        if (c && c.blob) {
+          ui.coversBlobs.push({ blob: c.blob, url: URL.createObjectURL(c.blob) });
+        }
+      });
+    }
+
+    return ui;
+  }
+
+  function serializeParsedReader(r) {
+    return {
+      name: r.name, textColor: r.textColor, backgroundColor: r.backgroundColor,
+      bgBlob: r.bgBlob, layoutConfig: r.layoutConfig, readConfig: r.readConfig, extraFiles: r.extraFiles
+    };
+  }
+
+  function deserializeParsedReader(r) {
+    return {
+      name: r.name, textColor: r.textColor, backgroundColor: r.backgroundColor,
+      bgBlob: r.bgBlob, bgBlobUrl: r.bgBlob ? URL.createObjectURL(r.bgBlob) : null,
+      layoutConfig: r.layoutConfig, readConfig: r.readConfig, extraFiles: r.extraFiles || {}
+    };
+  }
+
+  function showCacheRestoredToast(remainingMins) {
+    const tipBox = $('importTipBox');
+    if (tipBox) {
+      tipBox.style.display = 'block';
+      tipBox.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: var(--sage);"></i> <b>已自动恢复离开前的编辑状态</b><br>退出页面或切换应用自动保留（剩余约 ${remainingMins} 分钟有效缓存）。`;
+    }
+  }
+
+  // Load cache on startup
+  loadCacheState();
+
   // ── Helpers ─────────────────────────────────────────────────────
 
   function hexToArgbInt(hex) {
@@ -234,6 +402,9 @@ document.addEventListener('DOMContentLoaded', () => {
       convertBtn.disabled = state.queue.length === 0;
       splitExportButtons.style.display = 'none';
     }
+
+    // Auto-save cache on queue render
+    saveCacheState();
   }
 
   function selectItem(id) {
@@ -241,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderQueue();
     const item = state.queue.find(q => q.id === id);
     if (item) applyPreview(item);
+    saveCacheState();
   }
 
   // ── Parse Theme Files ─────────────────────────────────────────────
@@ -843,9 +1015,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeItem && activeItem.hasUi) {
       await exportMd3Ui(activeItem);
       const tipBox = $('importTipBox');
-      if (tipBox) tipBox.style.display = 'block';
     }
   });
+
+  if (themeNameInput) {
+    themeNameInput.addEventListener('input', () => saveCacheState());
+  }
 
   exportReaderBtn.addEventListener('click', async () => {
     const activeItem = state.queue.find(q => q.id === state.activeId);
