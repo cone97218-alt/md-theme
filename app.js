@@ -107,12 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
         id: item.id,
         name: item.name,
         rawType: item.rawType,
-        hasUi: item.hasUi,
-        hasReader: item.hasReader,
-        status: item.status,
-        fileBlob: item.file,
-        parsedUiData: item.parsedUi ? serializeParsedUi(item.parsedUi) : null,
-        parsedReaderData: item.parsedReader ? serializeParsedReader(item.parsedReader) : null
+        customName: item.customName,
+        fileBlob: item.file
       }));
 
       const cacheData = {
@@ -149,18 +145,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.queue = [];
         for (const cachedItem of cache.items) {
+          if (!cachedItem.fileBlob) continue;
           const item = {
             id: cachedItem.id,
             file: cachedItem.fileBlob,
             name: cachedItem.name,
             rawType: cachedItem.rawType,
-            hasUi: cachedItem.hasUi,
-            hasReader: cachedItem.hasReader,
-            status: cachedItem.status,
-            parsedUi: cachedItem.parsedUiData ? deserializeParsedUi(cachedItem.parsedUiData) : null,
-            parsedReader: cachedItem.parsedReaderData ? deserializeParsedReader(cachedItem.parsedReaderData) : null
+            customName: cachedItem.customName,
+            hasUi: false,
+            hasReader: false,
+            parsedUi: null,
+            parsedReader: null,
+            status: 'parsing'
           };
           state.queue.push(item);
+          try {
+            await parseFile(item);
+          } catch(err) {
+            console.warn('[Cache Re-parse Failed]', item.name, err);
+          }
         }
 
         if (cache.themeName && themeNameInput) themeNameInput.value = cache.themeName;
@@ -182,56 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).delete('current_session');
     } catch(e){}
-  }
-
-  function serializeParsedUi(d) {
-    return {
-      name: d.name, type: d.type, primaryColor: d.primaryColor, primaryColorDark: d.primaryColorDark,
-      cardColor: d.cardColor, cardColorDark: d.cardColorDark, bgBlob: d.bgBlob,
-      navIconsBlobs: d.navIconsBlobs, coversBlobs: d.coversBlobs, fontBlob: d.fontBlob
-    };
-  }
-
-  function deserializeParsedUi(d) {
-    const ui = {
-      name: d.name, type: d.type, primaryColor: d.primaryColor, primaryColorDark: d.primaryColorDark,
-      cardColor: d.cardColor, cardColorDark: d.cardColorDark, bgBlob: d.bgBlob,
-      bgBlobUrl: d.bgBlob ? URL.createObjectURL(d.bgBlob) : null, navIconsBlobs: {}, coversBlobs: [], fontBlob: d.fontBlob
-    };
-
-    if (d.navIconsBlobs) {
-      Object.keys(d.navIconsBlobs).forEach(k => {
-        const item = d.navIconsBlobs[k];
-        if (item && item.blob) {
-          ui.navIconsBlobs[k] = { blob: item.blob, url: URL.createObjectURL(item.blob) };
-        }
-      });
-    }
-
-    if (d.coversBlobs) {
-      d.coversBlobs.forEach(c => {
-        if (c && c.blob) {
-          ui.coversBlobs.push({ blob: c.blob, url: URL.createObjectURL(c.blob) });
-        }
-      });
-    }
-
-    return ui;
-  }
-
-  function serializeParsedReader(r) {
-    return {
-      name: r.name, textColor: r.textColor, backgroundColor: r.backgroundColor,
-      bgBlob: r.bgBlob, layoutConfig: r.layoutConfig, readConfig: r.readConfig, extraFiles: r.extraFiles
-    };
-  }
-
-  function deserializeParsedReader(r) {
-    return {
-      name: r.name, textColor: r.textColor, backgroundColor: r.backgroundColor,
-      bgBlob: r.bgBlob, bgBlobUrl: r.bgBlob ? URL.createObjectURL(r.bgBlob) : null,
-      layoutConfig: r.layoutConfig, readConfig: r.readConfig, extraFiles: r.extraFiles || {}
-    };
   }
 
   function showCacheRestoredToast(remainingMins) {
