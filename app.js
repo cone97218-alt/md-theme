@@ -640,6 +640,39 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 4. Scan for TTF / OTF fonts in RED\x10 binary container
+    const fontExtraFiles = {};
+    let fontIndex = 0;
+    for (let i = 0; i < bytes.length - 12; i++) {
+      const isTtf = (bytes[i] === 0x00 && bytes[i+1] === 0x01 && bytes[i+2] === 0x00 && bytes[i+3] === 0x00);
+      const isOtf = (bytes[i] === 0x4F && bytes[i+1] === 0x54 && bytes[i+2] === 0x54 && bytes[i+3] === 0x4F);
+      if (isTtf || isOtf) {
+        const numTables = (bytes[i+4] << 8) | bytes[i+5];
+        if (numTables > 0 && numTables < 100) {
+          let maxOffset = 0;
+          let validTables = true;
+          for (let t = 0; t < numTables; t++) {
+            const tableEntry = i + 12 + t * 16;
+            if (tableEntry + 16 > bytes.length) { validTables = false; break; }
+            const offset = (bytes[tableEntry+8] << 24) | (bytes[tableEntry+9] << 16) | (bytes[tableEntry+10] << 8) | bytes[tableEntry+11];
+            const length = (bytes[tableEntry+12] << 24) | (bytes[tableEntry+13] << 16) | (bytes[tableEntry+14] << 8) | bytes[tableEntry+15];
+            const tableEnd = offset + length;
+            if (tableEnd > maxOffset) maxOffset = tableEnd;
+          }
+          if (validTables && maxOffset > 1000 && maxOffset < 50000000) {
+            const fontBytes = bytes.subarray(i, Math.min(i + maxOffset + 1024, bytes.length));
+            const ext = isOtf ? 'otf' : 'ttf';
+            const fn = fontIndex === 0 ? `custom_font.${ext}` : `custom_font_${fontIndex}.${ext}`;
+            const fontBlob = new Blob([fontBytes], { type: isOtf ? 'font/otf' : 'font/ttf' });
+            fontExtraFiles[fn] = fontBlob;
+            if (!uiData.fontBlob) uiData.fontBlob = fontBlob;
+            fontIndex++;
+            i += Math.min(maxOffset, fontBytes.length) - 1;
+          }
+        }
+      }
+    }
+
     const readerData = {
       name: readerMeta ? readerMeta.name : themeName,
       textColor: readerMeta ? readerMeta.textColor : '#3E3D3B',
@@ -647,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bgBlob: jpegs.length > 1 ? jpegs[1].blob : (jpegs.length > 0 ? jpegs[0].blob : null),
       bgBlobUrl: jpegs.length > 1 ? jpegs[1].url : (jpegs.length > 0 ? jpegs[0].url : null),
       layoutConfig: layoutCfg,
-      extraFiles: {}
+      extraFiles: fontExtraFiles
     };
 
     item.hasReader = true;
