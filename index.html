@@ -198,6 +198,12 @@
 
               <!-- Tab 1: App UI Layout Preview -->
               <div class="tab-pane" id="tabPreview">
+
+                <!-- Bookshelf Carousel Banner (Extracted from theme) -->
+                <div class="bookshelf-banner" id="bookshelfBanner" style="display:none">
+                  <img id="bannerImg" src="" alt="Banner Carousel">
+                </div>
+
                 <div class="bookshelf-tabs">
                   <span class="bs-tab active">在读</span>
                   <span class="bs-tab">未读</span>
@@ -234,7 +240,7 @@
                 </div>
               </div>
 
-              <!-- Tab 2: Reader Typesetting Preview (Pure Direct Layout, No Bubbles) -->
+              <!-- Tab 2: Reader Typesetting Preview (Pure Immersive Reading Page) -->
               <div class="tab-pane" id="tabReader" style="display:none; height:100%; width:100%;">
                 <div class="reader-screen" id="readerScreen">
                   <div class="reader-header" id="readerHeader">
@@ -246,7 +252,7 @@
                     <h3 id="readerTitleText" class="reader-chapter-title">第一章 序章</h3>
                     <p id="readerPara1" class="reader-p">文字在静谧的纸页上缓缓延展，低饱和的莫兰迪色彩抚平了浮躁。</p>
                     
-                    <!-- Special Dialogue / Quote Block (对话与旁白) -->
+                    <!-- Special Dialogue / Highlight Rule Block (高亮规则与对话背景图) -->
                     <blockquote class="reader-dialogue" id="readerDialogue">
                       “倘若大地变成一颗酸橙，我们是否还能在酸甜中寻得安宁？”
                     </blockquote>
@@ -319,6 +325,10 @@
                   <div class="meta-row">
                     <span class="meta-key">排版背景/字体</span>
                     <span class="meta-val" id="metaReaderBg">无</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">高亮规则/海报</span>
+                    <span class="meta-val" id="metaHighlights">无</span>
                   </div>
                   <div class="meta-row">
                     <span class="meta-key">导航图标</span>

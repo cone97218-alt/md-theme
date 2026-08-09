@@ -331,6 +331,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Extract Bookshelf Carousel Banner images
+    const carouselFiles = Object.keys(zip.files).filter(n => n.includes('bookshelf_carousel') && (n.endsWith('.img') || n.endsWith('.jpg') || n.endsWith('.png')));
+    for (const fn of carouselFiles) {
+      const blob = await zip.file(fn).async('blob');
+      d.carouselBlobs.push({ blob, url: URL.createObjectURL(blob) });
+    }
+
     for (const fn of Object.keys(zip.files)) {
       if (/\.(ttf|otf)$/i.test(fn)) { d.fontBlob = await zip.file(fn).async('blob'); break; }
     }
@@ -461,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function newParsedUi(name, type, primaryColor = '#FF8909', primaryColorDark = '#F5F5F5', cardColor = '#FFFFFF', cardColorDark = '#171719') {
     return { name, type, primaryColor, primaryColorDark, cardColor, cardColorDark,
-             bgBlobUrl: null, bgBlob: null, navIconsBlobs: {}, coversBlobs: [], fontBlob: null };
+             bgBlobUrl: null, bgBlob: null, navIconsBlobs: {}, coversBlobs: [], carouselBlobs: [], fontBlob: null };
   }
 
   // ── Apply Preview to Phone Mockup ─────────────────────────────────
@@ -492,6 +499,16 @@ document.addEventListener('DOMContentLoaded', () => {
         wrap.innerHTML = `<i class="fa-solid ${FA_MAP[key]}"></i>`;
       }
     });
+
+    // Bookshelf Carousel Banner Preview
+    const bannerBox = $('bookshelfBanner');
+    const bannerImg = $('bannerImg');
+    if (uiData && uiData.carouselBlobs && uiData.carouselBlobs.length > 0) {
+      if (bannerBox) bannerBox.style.display = 'block';
+      if (bannerImg) bannerImg.src = uiData.carouselBlobs[0].url;
+    } else {
+      if (bannerBox) bannerBox.style.display = 'none';
+    }
 
     // Cover gallery
     galleryGrid.innerHTML = '';
@@ -537,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
       readerBody.style.lineHeight = (1.4 + lineSpacing / 30).toFixed(2);
       
       const pIndent = layout.paragraphIndent !== undefined ? layout.paragraphIndent : '2em';
+
       // Accent Color, Underline & Text Shadow
       const accentColor = (readerData.readConfig && readerData.readConfig.textAccentColor) || '#8a9e8b';
       const underlineColor = (readerData.readConfig && readerData.readConfig.underlineColor) || textColor;
@@ -552,6 +570,20 @@ document.addEventListener('DOMContentLoaded', () => {
         readerBody.style.textShadow = '1px 1px 2px rgba(0,0,0,0.35)';
       } else {
         readerBody.style.textShadow = 'none';
+      }
+
+      // Check Highlight Rule Background Images
+      let hasHighlightImage = false;
+      if (readerData.extraFiles) {
+        const hlBgKey = Object.keys(readerData.extraFiles).find(fn => fn.includes('highlight_rule_bg') && /\.(png|jpg|jpeg)$/i.test(fn));
+        if (hlBgKey) {
+          hasHighlightImage = true;
+          const hlUrl = URL.createObjectURL(readerData.extraFiles[hlBgKey]);
+          if (dialogue) {
+            dialogue.style.backgroundImage = `url('${hlUrl}')`;
+            dialogue.style.backgroundSize = 'cover';
+          }
+        }
       }
 
       // Check custom font loading
@@ -576,6 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSwatch('swatchReaderText', textColor);
       $('metaReaderText').textContent = textColor;
       $('metaReaderBg').textContent = (readerData.bgBlobUrl ? '背景图' : '基础色') + (hasCustomFont ? ' + 提取字体' : '');
+      const metaHl = $('metaHighlights');
+      if (metaHl) metaHl.textContent = (hasHighlightImage ? '高亮背景图' : '无') + (uiData && uiData.carouselBlobs && uiData.carouselBlobs.length ? ` / ${uiData.carouselBlobs.length}张海报` : '');
     }
 
     // Metadata
