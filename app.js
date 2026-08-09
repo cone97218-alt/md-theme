@@ -500,16 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Bookshelf Carousel Banner Preview
-    const bannerBox = $('bookshelfBanner');
-    const bannerImg = $('bannerImg');
-    if (uiData && uiData.carouselBlobs && uiData.carouselBlobs.length > 0) {
-      if (bannerBox) bannerBox.style.display = 'block';
-      if (bannerImg) bannerImg.src = uiData.carouselBlobs[0].url;
-    } else {
-      if (bannerBox) bannerBox.style.display = 'none';
-    }
-
     // Cover gallery
     galleryGrid.innerHTML = '';
     if (uiData && uiData.coversBlobs.length) {
@@ -609,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
       $('metaReaderText').textContent = textColor;
       $('metaReaderBg').textContent = (readerData.bgBlobUrl ? '背景图' : '基础色') + (hasCustomFont ? ' + 提取字体' : '');
       const metaHl = $('metaHighlights');
-      if (metaHl) metaHl.textContent = (hasHighlightImage ? '高亮背景图' : '无') + (uiData && uiData.carouselBlobs && uiData.carouselBlobs.length ? ` / ${uiData.carouselBlobs.length}张海报` : '');
+      if (metaHl) metaHl.textContent = (hasHighlightImage ? '已提取' : '无');
     }
 
     // Metadata
