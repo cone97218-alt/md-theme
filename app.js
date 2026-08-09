@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const readerData = item.parsedReader;
     const displayName = themeNameInput.value.trim() || (uiData ? uiData.name : readerData ? readerData.name : item.name);
 
-    previewTitle.textContent = displayName;
+    previewTitle.textContent = '书架';
     if (!themeNameInput.value) {
       themeNameInput.value = displayName;
     }

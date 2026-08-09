@@ -733,10 +733,13 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   z-index: 10;
-  transition: background 0.3s, color 0.3s;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: color 0.3s;
   flex-shrink: 0;
 }
 
@@ -754,7 +757,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
 .phone-screen[data-mockup-mode="light"] .phone-topbar,
 .phone-screen:not([data-mockup-mode="dark"]) .phone-topbar {
-  background: rgba(255,255,255,0.65);
   color: #2c2a27;
 }
 
@@ -804,7 +806,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 }
 
 .phone-screen[data-mockup-mode="dark"] .phone-topbar {
-  background: rgba(37,44,50,0.85);
   color: #ffffff;
 }
 
