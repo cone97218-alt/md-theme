@@ -1,7 +1,7 @@
 /**
- * Morandi Theme Studio — app.js v5
+ * Morandi Theme Studio — app.js v6
  * Supports App UI Theme (应用界面美化) & Reader Typesetting (阅读界面排版美化)
- * Advanced Mockup Inspector & Real-time Reader Typesetting Preview
+ * Responsive Mobile UI: Segmented Tab Switcher, Zero Horizontal Overflow, Pure Direct Layout
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     appTheme: 'light',   // 'light' | 'dark'
     mockupMode: 'light', // 'light' | 'dark'
     activeTab: 'preview',
+    mobileTab: 'controls', // 'controls' | 'preview'
     queue: [],           // Array of QueueItem
     activeId: null
   };
@@ -22,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const themeToggleBtn     = $('themeToggleBtn');
   const themeIcon          = $('themeIcon');
   const themeLabel         = $('themeLabel');
+
+  const workspace          = $('workspace');
+  const mobileTabSwitcher  = $('mobileTabSwitcher');
 
   const dropZone           = $('dropZone');
   const fileInput          = $('fileInput');
@@ -48,8 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reader Screen Elements
   const readerScreen       = $('readerScreen');
   const readerBody         = $('readerBody');
-  const readerHeader       = $('readerHeader');
-  const readerFooter       = $('readerFooter');
   const readerBookName     = $('readerBookName');
   const readerTitleText    = $('readerTitleText');
 
@@ -60,6 +62,20 @@ document.addEventListener('DOMContentLoaded', () => {
     rss:       $('navRss'),
     my:        $('navMy')
   };
+
+  // Set initial workspace state for mobile
+  if (workspace) workspace.setAttribute('data-m-active', 'controls');
+
+  // ── Mobile Main Tab Switcher ─────────────────────────────────────
+  $$('.m-switcher-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.m-switcher-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mTab = btn.getAttribute('data-m-tab');
+      state.mobileTab = mTab;
+      if (workspace) workspace.setAttribute('data-m-active', mTab);
+    });
+  });
 
   // ── Helpers ─────────────────────────────────────────────────────
 
@@ -112,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeItem) applyPreview(activeItem);
   });
 
-  // ── Tab Switcher ─────────────────────────────────────────────────
+  // ── Tab Switcher inside Inspector ───────────────────────────────
   $$('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -489,12 +505,11 @@ document.addEventListener('DOMContentLoaded', () => {
       galleryGrid.innerHTML = `<div class="gallery-empty"><i class="fa-regular fa-image"></i><span>暂无书单封面</span></div>`;
     }
 
-    // Reader Screen Typesetting Live Preview (NEW!)
+    // Reader Screen Typesetting Live Preview (Pure Direct Layout)
     if (readerData) {
       readerBookName.textContent = displayName;
       readerTitleText.textContent = '第一章 序章';
 
-      // Reader Background
       if (readerData.bgBlobUrl) {
         readerScreen.style.backgroundImage = `url('${readerData.bgBlobUrl}')`;
       } else if (readerData.readConfig && readerData.readConfig.bgStrNight && state.mockupMode === 'dark') {
@@ -505,14 +520,12 @@ document.addEventListener('DOMContentLoaded', () => {
         readerScreen.style.backgroundColor = readerData.backgroundColor || (state.mockupMode === 'dark' ? '#1e2428' : '#f4f1ec');
       }
 
-      // Reader Text Color
       let textColor = readerData.textColor || '#3E3D3B';
       if (state.mockupMode === 'dark') {
         textColor = (readerData.readConfig && readerData.readConfig.textColorNight) || '#ADADAD';
       }
       readerScreen.style.color = textColor;
 
-      // Reader Layout Spacing & Typography
       const layout = readerData.layoutConfig || (readerData.readConfig || {});
       const fontSize = layout.fontSize || layout.textSize || 11;
       const lineSpacing = layout.lineSpacing || layout.lineSpacingExtra || 14;
@@ -634,7 +647,6 @@ document.addEventListener('DOMContentLoaded', () => {
     wakeAppBtn.addEventListener('click', () => {
       const tipBox = $('importTipBox');
       if (tipBox) tipBox.style.display = 'block';
-      // Attempt URL schemes for Legado App
       window.location.href = 'legado://';
       setTimeout(() => {
         window.location.href = 'intent://io.legado.app.md3#Intent;scheme=legado;package=io.legado.app.md3;end';

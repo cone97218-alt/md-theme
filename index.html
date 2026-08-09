@@ -34,14 +34,14 @@
     <div class="navbar-brand">
       <img src="icon.png" alt="Logo" class="brand-app-icon">
       <div class="brand-text">
-        <span class="brand-name">Morandi Theme Studio</span>
+        <span class="brand-name">Morandi Studio</span>
         <span class="brand-sub">阅读美化转换工具</span>
       </div>
     </div>
 
     <nav class="navbar-center">
-      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 应用界面美化</span>
-      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 阅读排版美化</span>
+      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 界面美化</span>
+      <span class="nav-badge"><i class="fa-solid fa-circle-dot"></i> 排版美化</span>
     </nav>
 
     <div class="navbar-actions">
@@ -52,11 +52,21 @@
     </div>
   </header>
 
+  <!-- ── Mobile Segmented Control (Mobile Main Switcher) ──────── -->
+  <div class="mobile-tab-switcher" id="mobileTabSwitcher">
+    <button class="m-switcher-btn active" data-m-tab="controls">
+      <i class="fa-solid fa-sliders"></i> 导入与设置
+    </button>
+    <button class="m-switcher-btn" data-m-tab="preview">
+      <i class="fa-solid fa-mobile-screen"></i> 效果预览
+    </button>
+  </div>
+
   <!-- ── Main Workspace ────────────────────────────────────────── -->
-  <main class="workspace">
+  <main class="workspace" id="workspace">
 
     <!-- ── Left Column: Upload & Controls ── -->
-    <aside class="panel panel-left">
+    <aside class="panel panel-left" id="panelLeft">
 
       <!-- Upload Section -->
       <div class="panel-section">
@@ -131,7 +141,7 @@
     </aside>
 
     <!-- ── Right Column: Phone Preview ── -->
-    <section class="panel panel-right">
+    <section class="panel panel-right" id="panelRight">
 
       <div class="preview-header">
         <div class="section-header" style="flex:1">
@@ -156,7 +166,7 @@
           <i class="fa-solid fa-images"></i> 封面图库
         </button>
         <button class="tab-btn" data-tab="metadata">
-          <i class="fa-solid fa-palette"></i> 色彩与排版
+          <i class="fa-solid fa-palette"></i> 色彩排版
         </button>
       </div>
 
@@ -224,7 +234,7 @@
                 </div>
               </div>
 
-              <!-- Tab 2: Reader Typesetting Preview -->
+              <!-- Tab 2: Reader Typesetting Preview (Pure Direct Layout, No Bubbles) -->
               <div class="tab-pane" id="tabReader" style="display:none; height:100%; width:100%;">
                 <div class="reader-screen" id="readerScreen">
                   <div class="reader-header" id="readerHeader">
