@@ -140,11 +140,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const pane = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
       if (pane) pane.style.display = 'block';
 
-      // Hide App TopBar & Bottom NavBar when viewing Reader Typesetting Preview tab
+      // Hide Phone Statusbar, TopBar & Bottom NavBar when viewing Reader Typesetting Preview tab
+      const phoneStatusbar = $('phoneStatusbar');
       if (tab === 'reader') {
+        if (phoneStatusbar) phoneStatusbar.style.display = 'none';
         phoneTopbar.style.display = 'none';
         phoneNavBar.style.display = 'none';
       } else {
+        if (phoneStatusbar) phoneStatusbar.style.display = 'flex';
         phoneTopbar.style.display = 'flex';
         phoneNavBar.style.display = 'flex';
       }
