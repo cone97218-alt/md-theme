@@ -537,11 +537,45 @@ document.addEventListener('DOMContentLoaded', () => {
       readerBody.style.lineHeight = (1.4 + lineSpacing / 30).toFixed(2);
       
       const pIndent = layout.paragraphIndent !== undefined ? layout.paragraphIndent : '2em';
-      $$('.reader-p').forEach(p => p.style.textIndent = pIndent === '' ? '0' : '2em');
+      // Accent Color, Underline & Text Shadow
+      const accentColor = (readerData.readConfig && readerData.readConfig.textAccentColor) || '#8a9e8b';
+      const underlineColor = (readerData.readConfig && readerData.readConfig.underlineColor) || textColor;
+      const dialogue = $('readerDialogue');
+      if (dialogue) {
+        dialogue.style.borderColor = accentColor;
+      }
+      const underlineEl = $('readerUnderlineText');
+      if (underlineEl) {
+        underlineEl.style.textDecorationColor = underlineColor;
+      }
+      if (readerData.readConfig && readerData.readConfig.textShadow) {
+        readerBody.style.textShadow = '1px 1px 2px rgba(0,0,0,0.35)';
+      } else {
+        readerBody.style.textShadow = 'none';
+      }
+
+      // Check custom font loading
+      let hasCustomFont = false;
+      if (readerData.extraFiles) {
+        const fontKey = Object.keys(readerData.extraFiles).find(fn => /\.(ttf|otf)$/i.test(fn));
+        if (fontKey) {
+          hasCustomFont = true;
+          const fontBlob = readerData.extraFiles[fontKey];
+          const fontUrl = URL.createObjectURL(fontBlob);
+          const fontFace = new FontFace('CustomReaderFont', `url(${fontUrl})`);
+          fontFace.load().then(loadedFont => {
+            document.fonts.add(loadedFont);
+            readerScreen.style.fontFamily = 'CustomReaderFont, var(--font)';
+          }).catch(e => console.warn('[CustomFont load failed]', e));
+        }
+      }
+      if (!hasCustomFont) {
+        readerScreen.style.fontFamily = 'var(--font)';
+      }
 
       updateSwatch('swatchReaderText', textColor);
       $('metaReaderText').textContent = textColor;
-      $('metaReaderBg').textContent = readerData.bgBlobUrl ? '背景图已提取' : '基础色背景';
+      $('metaReaderBg').textContent = (readerData.bgBlobUrl ? '背景图' : '基础色') + (hasCustomFont ? ' + 提取字体' : '');
     }
 
     // Metadata

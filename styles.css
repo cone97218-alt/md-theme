@@ -1027,6 +1027,33 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   margin-bottom: 10px;
 }
 
+.reader-dialogue {
+  margin: 10px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgba(138,158,139,0.08);
+  border-radius: 0 6px 6px 0;
+  font-size: 11.5px;
+  font-style: italic;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+.reader-bold {
+  font-weight: 700;
+  color: var(--accent-dk);
+}
+
+.reader-italic {
+  font-style: italic;
+}
+
+.reader-underline {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
 .reader-footer {
   display: flex;
   justify-content: space-between;
