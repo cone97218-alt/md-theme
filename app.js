@@ -599,6 +599,8 @@ document.addEventListener('DOMContentLoaded', () => {
         await exportMd3Reader(activeItem);
       }
       activeItem.status = 'done';
+      const tipBox = $('importTipBox');
+      if (tipBox) tipBox.style.display = 'block';
     } catch (err) {
       console.error('[Export error]', err);
       activeItem.status = 'error';
@@ -613,6 +615,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeItem = state.queue.find(q => q.id === state.activeId);
     if (activeItem && activeItem.hasUi) {
       await exportMd3Ui(activeItem);
+      const tipBox = $('importTipBox');
+      if (tipBox) tipBox.style.display = 'block';
     }
   });
 
@@ -620,8 +624,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeItem = state.queue.find(q => q.id === state.activeId);
     if (activeItem && activeItem.hasReader) {
       await exportMd3Reader(activeItem);
+      const tipBox = $('importTipBox');
+      if (tipBox) tipBox.style.display = 'block';
     }
   });
+
+  const wakeAppBtn = $('wakeAppBtn');
+  if (wakeAppBtn) {
+    wakeAppBtn.addEventListener('click', () => {
+      const tipBox = $('importTipBox');
+      if (tipBox) tipBox.style.display = 'block';
+      // Attempt URL schemes for Legado App
+      window.location.href = 'legado://';
+      setTimeout(() => {
+        window.location.href = 'intent://io.legado.app.md3#Intent;scheme=legado;package=io.legado.app.md3;end';
+      }, 500);
+    });
+  }
 
   // Export MD3 App UI Theme (.md3.zip)
   async function exportMd3Ui(item) {
