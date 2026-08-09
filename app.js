@@ -134,12 +134,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       req.onsuccess = async () => {
         const cache = req.result;
-        if (!cache || !cache.timestamp || !cache.items || !cache.items.length) return;
+        if (!cache || !cache.timestamp) return;
 
         const age = Date.now() - cache.timestamp;
-        if (age > CACHE_TTL_MS) {
-          console.log('[Cache Expired]', age / 1000, 'seconds');
+        if (age > CACHE_TTL_MS || !cache.items || !cache.items.length) {
           clearCacheState();
+          state.queue = [];
+          state.activeId = null;
+          if (themeNameInput) themeNameInput.value = '';
+          resetPreview();
+          renderQueue();
           return;
         }
 
@@ -408,8 +412,12 @@ document.addEventListener('DOMContentLoaded', () => {
       splitExportButtons.style.display = 'none';
     }
 
-    // Auto-save cache on queue render
-    saveCacheState();
+    if (state.queue.length === 0) {
+      clearCacheState();
+      resetPreview();
+    } else {
+      saveCacheState();
+    }
   }
 
   function selectItem(id) {
@@ -1020,18 +1028,30 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('[Export error]', err);
       activeItem.status = 'error';
+    } finally {
+      renderQueue();
+      convertBtn.disabled = false;
+      convertBtn.innerHTML = '<i class="fa-solid fa-box-archive"></i><span>导出 MD3 美化包 (.zip)</span>';
     }
-
-    renderQueue();
-    convertBtn.disabled = false;
-    convertBtn.innerHTML = '<i class="fa-solid fa-box-archive"></i><span>导出 MD3 美化包 (.zip)</span>';
   });
 
   exportUiBtn.addEventListener('click', async () => {
     const activeItem = state.queue.find(q => q.id === state.activeId);
-    if (activeItem && activeItem.hasUi) {
+    if (!activeItem || !activeItem.hasUi) return;
+
+    exportUiBtn.disabled = true;
+    exportUiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 导出中…';
+    try {
       await exportMd3Ui(activeItem);
+      activeItem.status = 'done';
       const tipBox = $('importTipBox');
+      if (tipBox) tipBox.style.display = 'block';
+    } catch (err) {
+      console.error('[exportUiBtn error]', err);
+    } finally {
+      renderQueue();
+      exportUiBtn.disabled = false;
+      exportUiBtn.innerHTML = '<i class="fa-solid fa-mobile"></i> 仅界面美化';
     }
   });
 
@@ -1041,10 +1061,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   exportReaderBtn.addEventListener('click', async () => {
     const activeItem = state.queue.find(q => q.id === state.activeId);
-    if (activeItem && activeItem.hasReader) {
+    if (!activeItem || !activeItem.hasReader) return;
+
+    exportReaderBtn.disabled = true;
+    exportReaderBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 导出中…';
+    try {
       await exportMd3Reader(activeItem);
+      activeItem.status = 'done';
       const tipBox = $('importTipBox');
       if (tipBox) tipBox.style.display = 'block';
+    } catch (err) {
+      console.error('[exportReaderBtn error]', err);
+    } finally {
+      renderQueue();
+      exportReaderBtn.disabled = false;
+      exportReaderBtn.innerHTML = '<i class="fa-solid fa-book-open-reader"></i> 仅排版美化';
     }
   });
 
