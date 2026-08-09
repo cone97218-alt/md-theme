@@ -411,6 +411,16 @@ document.addEventListener('DOMContentLoaded', () => {
       convertBtn.disabled = state.queue.length === 0;
       splitExportButtons.style.display = 'none';
     }
+    const batchExportBtn = $('batchExportBtn');
+    const batchExportLabel = $('batchExportLabel');
+    if (batchExportBtn && batchExportLabel) {
+      if (state.queue.length > 1) {
+        batchExportBtn.style.display = 'block';
+        batchExportLabel.textContent = `📦 批量导出队列中全部美化包 (${state.queue.length}个)`;
+      } else {
+        batchExportBtn.style.display = 'none';
+      }
+    }
 
     if (state.queue.length === 0) {
       clearCacheState();
@@ -1078,6 +1088,47 @@ document.addEventListener('DOMContentLoaded', () => {
       exportReaderBtn.innerHTML = '<i class="fa-solid fa-book-open-reader"></i> 仅排版美化';
     }
   });
+
+  const batchExportBtn = $('batchExportBtn');
+  const batchExportLabel = $('batchExportLabel');
+  if (batchExportBtn) {
+    batchExportBtn.addEventListener('click', async () => {
+      const itemsToExport = state.queue.filter(q => q.hasUi || q.hasReader);
+      if (!itemsToExport.length) return;
+
+      batchExportBtn.disabled = true;
+      let count = 0;
+      for (const item of itemsToExport) {
+        count++;
+        if (batchExportLabel) {
+          batchExportLabel.textContent = `正在批量导出 (${count}/${itemsToExport.length})…`;
+        }
+        try {
+          if (item.hasUi) {
+            await exportMd3Ui(item);
+            await new Promise(res => setTimeout(res, 500));
+          }
+          if (item.hasReader) {
+            await exportMd3Reader(item);
+            await new Promise(res => setTimeout(res, 500));
+          }
+          item.status = 'done';
+        } catch (err) {
+          console.error('[Batch Export Error]', item.name, err);
+          item.status = 'error';
+        }
+      }
+
+      batchExportBtn.disabled = false;
+      renderQueue();
+
+      const tipBox = $('importTipBox');
+      if (tipBox) {
+        tipBox.style.display = 'block';
+        tipBox.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--sage);"></i> <b>批量导出完成！</b><br>已成功导出了 ${itemsToExport.length} 个 MD3 美化包，直接在【阅读】App 中点击导入即可。`;
+      }
+    });
+  }
 
   function wakeLegadoApp(targetType = 'all') {
     const tipBox = $('importTipBox');
