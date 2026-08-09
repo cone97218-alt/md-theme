@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import io
+import re
 
 def hex_to_argb_int(hex_str):
     """Converts hex color string (#AARRGGBB, #RRGGBB, etc.) to 32-bit signed integer."""
@@ -508,6 +509,137 @@ def convert_arc_to_md3_ui(input_path, output_path):
         safe_write_zip(zout, written_files, 'manifest.json', json.dumps(manifest, indent=2, ensure_ascii=False).encode('utf-8'))
         print(f"[ARC->MD3 App UI] Saved to: {output_path}")
 
+def convert_red_v2_to_md3(input_path, output_dir, base_name):
+    with open(input_path, 'rb') as f:
+        data = f.read()
+    
+    text = data.decode('utf-8', errors='ignore')
+    decoder = json.JSONDecoder()
+    
+    pos = 0
+    schemas = []
+    while True:
+        idx = text.find('{"name":', pos)
+        if idx == -1:
+            break
+        try:
+            obj, end_idx = decoder.raw_decode(text, idx)
+            schemas.append(obj)
+            pos = end_idx
+        except Exception:
+            pos = idx + 8
+
+    theme_meta = {}
+    reader_meta = {}
+    for s in schemas:
+        if isinstance(s, dict):
+            if 'light' in s and isinstance(s['light'], dict) and 'primaryColor' in s['light']:
+                theme_meta = s
+            elif 'backgroundColor' in s and 'textColor' in s and 'layoutConfig' in s:
+                reader_meta = s
+    
+    # 3. Extract JPEG image blobs
+    jpegs = []
+    pos = 0
+    while True:
+        start = data.find(b'\xff\xd8\xff', pos)
+        if start == -1: break
+        end = data.find(b'\xff\xd9', start + 2)
+        if end != -1:
+            end += 2
+            img_bytes = data[start:end]
+            if len(img_bytes) > 2000:
+                jpegs.append(img_bytes)
+            pos = end
+        else:
+            pos = start + 3
+
+    # 4. Extract PNG image blobs
+    pngs = []
+    pos = 0
+    while True:
+        start = data.find(b'\x89PNG\r\n\x1a\n', pos)
+        if start == -1: break
+        end = data.find(b'IEND\xaeB`\x82', start + 8)
+        if end != -1:
+            end += 8
+            img_bytes = data[start:end]
+            if len(img_bytes) > 200:
+                pngs.append(img_bytes)
+            pos = end
+        else:
+            pos = start + 8
+
+    name = theme_meta.get('name', base_name) if theme_meta else base_name
+    light = theme_meta.get('light', {}) if theme_meta else {}
+    
+    # Export App UI MD3 Zip
+    out_ui = os.path.join(output_dir, f"{base_name}_应用界面.md3.zip")
+    with zipfile.ZipFile(out_ui, 'w', zipfile.ZIP_DEFLATED) as zout:
+        written_files = set()
+        assets_map = {}
+        if jpegs:
+            safe_write_zip(zout, written_files, 'assets/background/light.jpg', jpegs[0])
+            assets_map['background.light'] = 'assets/background/light.jpg'
+        
+        nav_keys = ['home', 'bookshelf', 'explore', 'rss', 'my']
+        for idx, key in enumerate(nav_keys):
+            if idx < len(pngs):
+                p = f'assets/navigation/{key}.png'
+                safe_write_zip(zout, written_files, p, pngs[idx])
+                assets_map[f'navigation.{key}'] = p
+        
+        cover_albums = []
+        if len(jpegs) > 1:
+            light_imgs = []
+            for idx, img in enumerate(jpegs[1:10]):
+                p = f'cover-albums/album_0/light/image_{idx}.png'
+                safe_write_zip(zout, written_files, p, img)
+                light_imgs.append({'path': p})
+            cover_albums.append({'darkImages': [], 'lightImages': light_imgs, 'name': name, 'ref': 'album_0'})
+
+        config = {
+            "appColumnBackgroundOpacity": 100,
+            "appTheme": "12",
+            "bookshelfCardColor": hex_to_argb_int(light.get('cardColor', '#A0FFFFFF')),
+            "cPrimary": hex_to_argb_int(light.get('primaryColor', '#FF4E6B68')),
+            "enableContainerBackgroundImage": bool(jpegs),
+            "materialVersion": "material3",
+            "useFloatingBottomBar": True
+        }
+        manifest = {
+            "assets": assets_map,
+            "config": config,
+            "coverAlbums": cover_albums,
+            "coverSelection": {"albumRef": "album_0"} if cover_albums else {},
+            "formatVersion": 1,
+            "name": name
+        }
+        safe_write_zip(zout, written_files, 'manifest.json', json.dumps(manifest, indent=2, ensure_ascii=False).encode('utf-8'))
+        print(f"[RED v2 -> MD3 App UI] Saved to: {out_ui}")
+
+    # Export Reader Typesetting MD3 Zip
+    out_ts = os.path.join(output_dir, f"{base_name}_阅读排版.md3.zip")
+    with zipfile.ZipFile(out_ts, 'w', zipfile.ZIP_DEFLATED) as zout:
+        written_files = set()
+        bg_name = 'bg_reader.jpg' if len(jpegs) > 1 else ''
+        if bg_name:
+            safe_write_zip(zout, written_files, bg_name, jpegs[1])
+        
+        read_config = {
+            "bgStr": bg_name,
+            "bgType": 2 if bg_name else 0,
+            "name": name,
+            "textColor": reader_meta.get('textColor', '#3E3D3B'),
+            "textSize": 16,
+            "lineSpacingExtra": 14,
+            "paragraphIndent": "　"
+        }
+        safe_write_zip(zout, written_files, 'readConfig.json', json.dumps(read_config, indent=2, ensure_ascii=False).encode('utf-8'))
+        print(f"[RED v2 -> MD3 Reader] Saved to: {out_ts}")
+
+    return True
+
 def auto_convert(input_path, output_dir=None):
     if not os.path.exists(input_path):
         print(f"Error: File not found {input_path}")
@@ -517,9 +649,20 @@ def auto_convert(input_path, output_dir=None):
         output_dir = os.path.dirname(input_path) or '.'
         
     base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+    # Check if file starts with RED\x10 magic bytes
+    with open(input_path, 'rb') as f:
+        head = f.read(8)
+    if head.startswith(b'RED\x10'):
+        print(f"[RED v2 Container] Detected RED v2 binary bundle: {input_path}")
+        return convert_red_v2_to_md3(input_path, output_dir, base_name)
     
-    with zipfile.ZipFile(input_path, 'r') as z:
-        types = detect_theme_type(z)
+    try:
+        with zipfile.ZipFile(input_path, 'r') as z:
+            types = detect_theme_type(z)
+    except Exception as e:
+        print(f"[Fallback] Zip open failed, trying RED v2 parser: {e}")
+        return convert_red_v2_to_md3(input_path, output_dir, base_name)
         
     if 'red_ui' in types or 'red_typesetting' in types:
         if 'red_ui' in types:

@@ -246,6 +246,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Parse Theme Files ─────────────────────────────────────────────
   async function parseFile(item) {
     try {
+      // Check if file starts with RED\x10 magic bytes (Reeden v2 binary container)
+      const headerBuffer = await item.file.slice(0, 8).arrayBuffer();
+      const headerBytes = new Uint8Array(headerBuffer);
+      const isRedV2 = headerBytes[0] === 0x52 && headerBytes[1] === 0x45 && headerBytes[2] === 0x44 && headerBytes[3] === 0x10;
+
+      if (isRedV2) {
+        await parseRedV2(item);
+        return;
+      }
+
       const zip = await JSZip.loadAsync(item.file);
       const names = Object.keys(zip.files);
 
@@ -278,10 +288,153 @@ document.addEventListener('DOMContentLoaded', () => {
 
       renderQueue();
     } catch (err) {
-      console.error('[parseFile]', err);
-      item.status = 'error';
-      renderQueue();
+      console.warn('[JSZip parse failed, trying RED v2 fallback]', err);
+      try {
+        await parseRedV2(item);
+      } catch (fallbackErr) {
+        console.error('[RED v2 fallback failed]', fallbackErr);
+        item.status = 'error';
+        renderQueue();
+      }
     }
+  }
+
+  // Fallback parser for Reeden v2 RED\x10 binary container files
+  async function parseRedV2(item) {
+    const arrayBuffer = await item.file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+
+    // 1. Parse JSON schemas using robust brace matching
+    const schemas = [];
+    let pos = 0;
+    while (true) {
+      const idx = text.indexOf('{"name":', pos);
+      if (idx === -1) break;
+      let braceCount = 0;
+      let inString = false;
+      let escape = false;
+      let endIdx = -1;
+      for (let i = idx; i < Math.min(idx + 100000, text.length); i++) {
+        const ch = text[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (!inString) {
+          if (ch === '{') braceCount++;
+          else if (ch === '}') {
+            braceCount--;
+            if (braceCount === 0) { endIdx = i + 1; break; }
+          }
+        }
+      }
+      if (endIdx !== -1) {
+        try {
+          const jsonStr = text.substring(idx, endIdx);
+          schemas.push(JSON.parse(jsonStr));
+          pos = endIdx;
+        } catch(e) { pos = idx + 8; }
+      } else {
+        pos = idx + 8;
+      }
+    }
+
+    let themeMeta = null;
+    let readerMeta = null;
+    schemas.forEach(s => {
+      if (s && typeof s === 'object') {
+        if (s.light && typeof s.light === 'object' && s.light.primaryColor) {
+          themeMeta = s;
+        } else if (s.backgroundColor && s.textColor && s.layoutConfig) {
+          readerMeta = s;
+        }
+      }
+    });
+
+    // 2. Scan for JPEG images
+    const jpegs = [];
+    for (let i = 0; i < bytes.length - 3; i++) {
+      if (bytes[i] === 0xFF && bytes[i+1] === 0xD8 && bytes[i+2] === 0xFF) {
+        let end = -1;
+        for (let j = i + 2; j < Math.min(i + 5000000, bytes.length - 1); j++) {
+          if (bytes[j] === 0xFF && bytes[j+1] === 0xD9) { end = j + 2; break; }
+        }
+        if (end !== -1 && (end - i) > 2000) {
+          const imgBytes = bytes.subarray(i, end);
+          const blob = new Blob([imgBytes], { type: 'image/jpeg' });
+          jpegs.push({ blob, url: URL.createObjectURL(blob) });
+          i = end - 1;
+        }
+      }
+    }
+
+    // 3. Scan for PNG images
+    const pngs = [];
+    for (let i = 0; i < bytes.length - 8; i++) {
+      if (bytes[i] === 0x89 && bytes[i+1] === 0x50 && bytes[i+2] === 0x4E && bytes[i+3] === 0x47) {
+        let end = -1;
+        for (let j = i + 8; j < Math.min(i + 5000000, bytes.length - 4); j++) {
+          if (bytes[j] === 0x49 && bytes[j+1] === 0x45 && bytes[j+2] === 0x4E && bytes[j+3] === 0x48) {
+            end = j + 8;
+            break;
+          }
+        }
+        if (end !== -1 && (end - i) > 200) {
+          const imgBytes = bytes.subarray(i, end);
+          const blob = new Blob([imgBytes], { type: 'image/png' });
+          pngs.push({ blob, url: URL.createObjectURL(blob) });
+          i = end - 1;
+        }
+      }
+    }
+
+    const themeName = (themeMeta ? themeMeta.name : item.name.replace(/\.red$/i, '')).replace(/[\r\n\t]/g, '').trim();
+    const light = themeMeta ? (themeMeta.light || {}) : {};
+    const dark  = themeMeta ? (themeMeta.dark || {})  : {};
+    const uiData = newParsedUi(themeName, 'red', light.primaryColor || '#FF8909', dark.primaryColor, light.cardColor, dark.cardColor);
+
+    if (jpegs.length > 0) {
+      uiData.bgBlob = jpegs[0].blob;
+      uiData.bgBlobUrl = jpegs[0].url;
+    }
+
+    const navKeys = ['home', 'bookshelf', 'explore', 'rss', 'my'];
+    pngs.slice(0, 5).forEach((p, idx) => {
+      if (idx < navKeys.length) {
+        uiData.navIconsBlobs[navKeys[idx]] = { blob: p.blob, url: p.url };
+      }
+    });
+
+    jpegs.slice(1, 10).forEach(j => {
+      uiData.coversBlobs.push({ blob: j.blob, url: j.url });
+    });
+
+    item.hasUi = true;
+    item.parsedUi = uiData;
+
+    let layoutCfg = {};
+    if (readerMeta && readerMeta.layoutConfig) {
+      if (typeof readerMeta.layoutConfig === 'string') {
+        try { layoutCfg = JSON.parse(readerMeta.layoutConfig); } catch(e){}
+      } else {
+        layoutCfg = readerMeta.layoutConfig;
+      }
+    }
+
+    const readerData = {
+      name: readerMeta ? readerMeta.name : themeName,
+      textColor: readerMeta ? readerMeta.textColor : '#3E3D3B',
+      backgroundColor: readerMeta ? readerMeta.backgroundColor : '#F4F1EC',
+      bgBlob: jpegs.length > 1 ? jpegs[1].blob : (jpegs.length > 0 ? jpegs[0].blob : null),
+      bgBlobUrl: jpegs.length > 1 ? jpegs[1].url : (jpegs.length > 0 ? jpegs[0].url : null),
+      layoutConfig: layoutCfg,
+      extraFiles: {}
+    };
+
+    item.hasReader = true;
+    item.parsedReader = readerData;
+    item.status = 'ready';
+    renderQueue();
   }
 
   // Extract App UI from Redden (.red)
