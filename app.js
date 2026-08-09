@@ -286,28 +286,56 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
 
-  function handleFiles(files) {
-    Array.from(files).forEach(file => {
+  async function handleFiles(files) {
+    const validFiles = Array.from(files).filter(file => {
       const ext = file.name.split('.').pop().toLowerCase();
-      if (['red', 'zip'].includes(ext)) {
-        const item = {
-          id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-          file,
-          name: file.name,
-          rawType: ext === 'red' ? 'red' : 'zip',
-          hasUi: false,
-          hasReader: false,
-          status: 'ready',
-          parsedUi: null,
-          parsedReader: null
-        };
-        state.queue.push(item);
-        parseFile(item).then(() => {
-          if (!state.activeId) selectItem(item.id);
-        });
-      }
+      return ['red', 'zip'].includes(ext);
     });
+
+    if (!validFiles.length) return;
+
+    const newItems = [];
+    for (let idx = 0; idx < validFiles.length; idx++) {
+      const file = validFiles[idx];
+      const ext = file.name.split('.').pop().toLowerCase();
+      const item = {
+        id: 'item_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 9),
+        file,
+        name: file.name,
+        rawType: ext === 'red' ? 'red' : 'zip',
+        hasUi: false,
+        hasReader: false,
+        status: 'parsing',
+        parsedUi: null,
+        parsedReader: null
+      };
+      state.queue.push(item);
+      newItems.push(item);
+    }
+
     renderQueue();
+
+    for (const item of newItems) {
+      try {
+        await parseFile(item);
+      } catch (err) {
+        console.error('[handleFiles parse error]', item.name, err);
+        item.status = 'error';
+      }
+    }
+
+    if (newItems.length > 0) {
+      const firstReady = newItems.find(i => i.status === 'ready') || newItems[0];
+      if (!state.activeId || !state.queue.find(q => q.id === state.activeId)) {
+        selectItem(firstReady.id);
+      } else {
+        renderQueue();
+      }
+    } else {
+      renderQueue();
+    }
+
+    saveCacheState();
   }
 
   const clearAllBtn = $('clearAllBtn');
@@ -1082,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!d) return;
 
     const zip       = new JSZip();
-    const name      = themeNameInput.value.trim() || d.name;
+    const name      = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || d.name;
     const assetsMap = {};
 
     if (d.bgBlob) {
@@ -1132,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!r) return;
 
     const zip = new JSZip();
-    const name = themeNameInput.value.trim() || r.name;
+    const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || r.name;
     let bgFilename = '';
 
     if (r.bgBlob) {
