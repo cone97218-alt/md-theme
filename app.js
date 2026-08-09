@@ -1098,6 +1098,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       batchExportBtn.disabled = true;
       let count = 0;
+      const masterZip = new JSZip();
+
       for (const item of itemsToExport) {
         count++;
         if (batchExportLabel) {
@@ -1105,12 +1107,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
           if (item.hasUi) {
-            await exportMd3Ui(item);
-            await new Promise(res => setTimeout(res, 500));
+            const uiBlob = await generateMd3UiBlob(item);
+            if (uiBlob) {
+              const name = `${item.customName || item.parsedUi?.name || item.name}_界面美化.md3.zip`;
+              masterZip.file(name, uiBlob);
+              downloadBlob(uiBlob, name);
+              await new Promise(res => setTimeout(res, 400));
+            }
           }
           if (item.hasReader) {
-            await exportMd3Reader(item);
-            await new Promise(res => setTimeout(res, 500));
+            const readerBlob = await generateMd3ReaderBlob(item);
+            if (readerBlob) {
+              const name = `${item.customName || item.parsedReader?.name || item.name}_阅读排版.md3.zip`;
+              masterZip.file(name, readerBlob);
+              downloadBlob(readerBlob, name);
+              await new Promise(res => setTimeout(res, 400));
+            }
           }
           item.status = 'done';
         } catch (err) {
@@ -1119,13 +1131,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      if (itemsToExport.length > 1) {
+        try {
+          const masterBlob = await masterZip.generateAsync({ type: 'blob' });
+          downloadBlob(masterBlob, `MD3美化包_批量合集(${itemsToExport.length}个主题).zip`);
+        } catch(e){}
+      }
+
       batchExportBtn.disabled = false;
       renderQueue();
 
       const tipBox = $('importTipBox');
       if (tipBox) {
         tipBox.style.display = 'block';
-        tipBox.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--sage);"></i> <b>批量导出完成！</b><br>已成功导出了 ${itemsToExport.length} 个 MD3 美化包，直接在【阅读】App 中点击导入即可。`;
+        tipBox.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--sage);"></i> <b>批量导出完成！</b><br>已成功生成 ${itemsToExport.length} 个 MD3 美化包。可在上方的<b>【已生成下载列表】</b>随时点击下载或保存<b>【批量合集.zip】</b>！`;
       }
     });
   }
@@ -1186,10 +1205,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Export MD3 App UI Theme (.md3.zip)
-  async function exportMd3Ui(item) {
+  // Generate MD3 App UI Theme Blob
+  async function generateMd3UiBlob(item) {
     const d         = item.parsedUi;
-    if (!d) return;
+    if (!d) return null;
 
     const zip       = new JSZip();
     const name      = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || d.name;
@@ -1232,14 +1251,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
 
-    const blob = await zip.generateAsync({ type: 'blob' });
-    downloadBlob(blob, `${name}_界面美化.md3.zip`);
+    return await zip.generateAsync({ type: 'blob' });
   }
 
-  // Export MD3 Reader Typesetting Theme (.md3.zip)
-  async function exportMd3Reader(item) {
+  async function exportMd3Ui(item) {
+    const d = item.parsedUi;
+    if (!d) return;
+    const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || d.name;
+    const blob = await generateMd3UiBlob(item);
+    if (blob) downloadBlob(blob, `${name}_界面美化.md3.zip`);
+  }
+
+  // Generate MD3 Reader Typesetting Theme Blob
+  async function generateMd3ReaderBlob(item) {
     const r = item.parsedReader;
-    if (!r) return;
+    if (!r) return null;
 
     const zip = new JSZip();
     const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || r.name;
@@ -1363,16 +1389,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     zip.file('readConfig.json', JSON.stringify(readConfig, null, 2));
-    const blob = await zip.generateAsync({ type: 'blob' });
-    downloadBlob(blob, `${name}_阅读排版.md3.zip`);
+    return await zip.generateAsync({ type: 'blob' });
+  }
+
+  async function exportMd3Reader(item) {
+    const r = item.parsedReader;
+    if (!r) return;
+    const name = item.customName || (themeNameInput ? themeNameInput.value.trim() : '') || r.name;
+    const blob = await generateMd3ReaderBlob(item);
+    if (blob) downloadBlob(blob, `${name}_阅读排版.md3.zip`);
   }
 
   function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.style.display = 'none';
+    a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    setTimeout(() => {
+      if (a.parentNode) document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 600000);
+    }, 500);
+
+    addDownloadLinkCard(filename, url);
+  }
+
+  function addDownloadLinkCard(filename, url) {
+    const box = $('downloadLinksBox');
+    const list = $('downloadList');
+    if (!box || !list) return;
+
+    box.style.display = 'block';
+
+    const card = document.createElement('div');
+    card.className = 'download-card';
+    card.innerHTML = `
+      <i class="fa-solid fa-file-arrow-down" style="color:var(--sage);"></i>
+      <div class="dl-name" title="${filename}">${filename}</div>
+      <a href="${url}" download="${filename}" class="btn-dl-now">
+        <i class="fa-solid fa-download"></i> 点击下载
+      </a>
+    `;
+    list.prepend(card);
+  }
+
+  const clearDownloadsBtn = $('clearDownloadsBtn');
+  if (clearDownloadsBtn) {
+    clearDownloadsBtn.addEventListener('click', () => {
+      const list = $('downloadList');
+      if (list) list.innerHTML = '';
+      const box = $('downloadLinksBox');
+      if (box) box.style.display = 'none';
+    });
   }
 
   function buildUiConfig(d, name) {

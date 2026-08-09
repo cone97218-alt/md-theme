@@ -441,6 +441,61 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   background: rgba(176, 141, 129, 0.15);
 }
 
+/* ── Download Links Box ───────────────────────────────────────── */
+.download-links-box {
+  background: var(--bg-alt);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r-sm);
+  padding: 10px;
+}
+
+.download-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.download-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  font-size: 12px;
+}
+
+.download-card .dl-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--txt);
+}
+
+.btn-dl-now {
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--sage), var(--dusty));
+  color: #fff !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: opacity var(--t);
+}
+
+.btn-dl-now:hover {
+  opacity: 0.9;
+}
+
 .qi-icon {
   width: 34px;
   height: 34px;

@@ -140,6 +140,15 @@
           </button>
         </div>
 
+        <!-- Download Links Container for Generated Files -->
+        <div class="download-links-box" id="downloadLinksBox" style="display: none; margin-top: 10px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--txt-mid); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span><i class="fa-solid fa-file-arrow-down" style="color: var(--sage);"></i> 已生成的 MD3 美化包（可随时点击下载）：</span>
+            <button id="clearDownloadsBtn" style="background:none; border:none; color:var(--txt-muted); font-size:10px; cursor:pointer;">清空列表</button>
+          </div>
+          <div class="download-list" id="downloadList"></div>
+        </div>
+
         <div class="import-tip-box" id="importTipBox" style="display: none; margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--bg-alt); font-size: 11px; color: var(--txt-mid); border: 1px solid var(--border-mid);">
           <i class="fa-solid fa-lightbulb" style="color: var(--sand);"></i> <b>极速导入技巧：</b><br>
           导出下载后，在手机<b>通知栏或下载列表</b>中点击该 `.md3.zip` 文件 ➔ 选择<b>【阅读】或【阅读 MD3】打开</b>即可直接一键自动导入！
