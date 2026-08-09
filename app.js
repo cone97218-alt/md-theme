@@ -357,21 +357,41 @@ document.addEventListener('DOMContentLoaded', () => {
     renderQueue();
   }
 
+  const clearAllBtn = $('clearAllBtn');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      state.queue = [];
+      state.activeId = null;
+      if (themeNameInput) themeNameInput.value = '';
+      resetPreview();
+      clearCacheState();
+      renderQueue();
+    });
+  }
+
   // ── Queue UI Rendering ────────────────────────────────────────────
   function renderQueue() {
     queueCount.textContent = `${state.queue.length} 个文件`;
+    if (clearAllBtn) {
+      clearAllBtn.style.display = state.queue.length > 0 ? 'inline-flex' : 'none';
+    }
     queueList.innerHTML = '';
+
     state.queue.forEach(item => {
+      const isSelected = state.activeId === item.id;
       const el = document.createElement('div');
-      el.className = 'queue-item' + (state.activeId === item.id ? ' active' : '');
+      el.className = 'queue-item' + (isSelected ? ' active' : '');
+      
+      const displayName = item.customName || (item.parsedUi ? item.parsedUi.name : item.parsedReader ? item.parsedReader.name : item.name);
+
       el.innerHTML = `
         <div class="qi-icon"><i class="fa-solid ${item.hasUi && item.hasReader ? 'fa-layer-group' : item.hasReader ? 'fa-book-open-reader' : 'fa-palette'}"></i></div>
         <div class="qi-info">
-          <div class="qi-name">${item.name}</div>
+          <div class="qi-name" title="${displayName}">${displayName}</div>
           <div class="qi-meta">${typeLabel(item)}</div>
         </div>
         <span class="qi-status status-${item.status}">
-          ${item.status === 'ready' ? '就绪' : item.status === 'done' ? '完成' : item.status === 'error' ? '失败' : '转换中'}
+          ${item.status === 'ready' ? '就绪' : item.status === 'done' ? '已导出' : item.status === 'error' ? '失败' : '转换中'}
         </span>
         <button class="qi-remove" title="移除"><i class="fa-solid fa-xmark"></i></button>
       `;
@@ -382,8 +402,12 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         state.queue = state.queue.filter(q => q.id !== item.id);
         if (state.activeId === item.id) {
-          state.activeId = null;
-          resetPreview();
+          state.activeId = state.queue.length ? state.queue[0].id : null;
+          if (state.activeId) {
+            selectItem(state.activeId);
+          } else {
+            resetPreview();
+          }
         }
         renderQueue();
       });
@@ -408,9 +432,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function selectItem(id) {
+    // Save custom theme name for previously active item before switching
+    if (state.activeId) {
+      const prev = state.queue.find(q => q.id === state.activeId);
+      if (prev && themeNameInput) {
+        prev.customName = themeNameInput.value.trim();
+      }
+    }
+
     state.activeId = id;
-    renderQueue();
     const item = state.queue.find(q => q.id === id);
+    if (item && themeNameInput) {
+      themeNameInput.value = item.customName !== undefined ? item.customName : (item.parsedUi ? item.parsedUi.name : item.parsedReader ? item.parsedReader.name : item.name);
+    }
+
+    renderQueue();
     if (item) applyPreview(item);
     saveCacheState();
   }

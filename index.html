@@ -70,10 +70,15 @@
 
       <!-- Upload Section -->
       <div class="panel-section">
-        <div class="section-header">
-          <i class="fa-solid fa-folder-open"></i>
-          <span>导入主题文件</span>
-          <span class="pill" id="queueCount">0 个文件</span>
+        <div class="section-header" style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>导入主题文件</span>
+            <span class="pill" id="queueCount">0 个文件</span>
+          </div>
+          <button id="clearAllBtn" class="btn-clear-all" style="display: none;" title="清空全部导入的文件">
+            <i class="fa-solid fa-trash-can"></i> 一键清空
+          </button>
         </div>
 
         <div class="drop-zone" id="dropZone">

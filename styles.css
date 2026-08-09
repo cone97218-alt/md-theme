@@ -398,8 +398,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
-  max-height: 220px;
+  max-height: 260px;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
 .queue:empty { display: none; }
@@ -411,15 +412,34 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   padding: 10px 12px;
   border-radius: var(--r-sm);
   background: var(--bg-alt);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-mid);
   cursor: pointer;
   transition: all var(--t);
-  white-space: nowrap;
-  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.queue-item:hover { border-color: var(--accent); box-shadow: var(--sh-xs); }
-.queue-item.active { border-color: var(--accent); background: var(--surface-80); }
+.queue-item:hover { border-color: var(--sage); box-shadow: var(--sh-xs); }
+.queue-item.active { border-color: var(--sage); background: rgba(138,158,139,0.12); box-shadow: 0 0 0 1px var(--sage); }
+
+.btn-clear-all {
+  background: transparent;
+  border: none;
+  color: var(--terracotta);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all var(--t);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-clear-all:hover {
+  background: rgba(176, 141, 129, 0.15);
+}
 
 .qi-icon {
   width: 34px;
