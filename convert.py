@@ -692,7 +692,7 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 safe_write_zip(zout, written_files, out_dark_bg, z.read(dark_bg))
                 assets_map['background.dark'] = out_dark_bg
 
-            # Nav icons
+            # Nav icons (normal & selected)
             tabbar_files = meta.get('tabBarProfile', {}).get('files', [])
             if not tabbar_files:
                 tabbar_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
@@ -702,27 +702,47 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 if tf in names:
                     tf_name = os.path.basename(tf).lower()
                     for key, nav_key in nav_map.items():
-                        if key in tf_name and 'normal' in tf_name:
-                            out_icon = f'assets/navigation/{nav_key}.png'
-                            safe_write_zip(zout, written_files, out_icon, z.read(tf))
-                            assets_map[f'navigation.{nav_key}'] = out_icon
+                        if key in tf_name:
+                            if 'normal' in tf_name:
+                                out_icon = f'assets/navigation/{nav_key}.png'
+                                safe_write_zip(zout, written_files, out_icon, z.read(tf))
+                                assets_map[f'navigation.{nav_key}'] = out_icon
+                            elif 'selected' in tf_name:
+                                out_icon_sel = f'assets/navigation/{nav_key}-selected.png'
+                                safe_write_zip(zout, written_files, out_icon_sel, z.read(tf))
+                                assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
                             break
 
-            # Covers
+            # Covers (Light & Dark)
             cover_files = meta.get('cover', {}).get('files', [])
             if not cover_files:
-                cover_files = [n for n in names if 'resources/cover/' in n and n.lower().endswith(('.jpg', '.png'))]
+                cover_files = [n for n in names if 'resources/cover/' in n and not 'cover_dark' in n and n.lower().endswith(('.jpg', '.png'))]
             
+            cover_dark_files = meta.get('coverDark', {}).get('files', [])
+            if not cover_dark_files:
+                cover_dark_files = [n for n in names if 'resources/cover_dark/' in n and n.lower().endswith(('.jpg', '.png'))]
+
             cover_albums = []
-            if cover_files:
-                light_images = []
-                for i, cf in enumerate(cover_files):
-                    if cf in names:
-                        out_cov = f'cover-albums/album_0/light/image_{i}.png'
-                        safe_write_zip(zout, written_files, out_cov, z.read(cf))
-                        light_images.append({'path': out_cov})
-                if light_images:
-                    cover_albums.append({'darkImages': [], 'lightImages': light_images, 'name': name, 'ref': 'album_0'})
+            light_images = []
+            dark_images = []
+
+            for i, cf in enumerate(cover_files):
+                if cf in names:
+                    out_cov = f'cover-albums/album_0/light/image_{i}.png'
+                    safe_write_zip(zout, written_files, out_cov, z.read(cf))
+                    light_images.append({'path': out_cov})
+
+            for i, cf in enumerate(cover_dark_files):
+                if cf in names:
+                    out_cov_dark = f'cover-albums/album_0/dark/image_{i}.png'
+                    safe_write_zip(zout, written_files, out_cov_dark, z.read(cf))
+                    dark_images.append({'path': out_cov_dark})
+
+            if light_images or dark_images:
+                cover_albums.append({'darkImages': dark_images, 'lightImages': light_images, 'name': name, 'ref': 'album_0'})
+
+            # Primary colors
+            primary_dark = colors.get('20', colors.get('22', primary_color))
 
             config = {
                 "appColumnBackgroundOpacity": 100,
@@ -731,8 +751,8 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "baseCardBorderColorNight": 0,
                 "baseCardBorderWidth": 1.0,
                 "baseCardCornerRadius": 16.0,
-                "bgImageBlurring": 3,
-                "bgImageNBlurring": 0,
+                "bgImageBlurring": 95,
+                "bgImageNBlurring": 95,
                 "bookInfoBackgroundBlur": "on",
                 "bookInfoDefaultCoverBackground": "on",
                 "bookInfoFollowCoverColor": True,
@@ -747,13 +767,17 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "cardElevation": 0,
                 "cardElevationDark": 0,
                 "cardMode": 0,
+                "cNPrimary": hex_to_argb_int(primary_dark),
+                "cPrimary": hex_to_argb_int(primary_color),
                 "customAppThemeColor": hex_to_argb_int(primary_color),
-                "customAppThemeColorDark": hex_to_argb_int(primary_color),
+                "customAppThemeColorDark": hex_to_argb_int(primary_dark),
                 "customCoverBorderRadius": 8.0,
+                "enableBlur": True,
+                "enableProgressiveBlur": True,
                 "primaryColor": hex_to_argb_int(primary_color),
-                "primaryColorDark": hex_to_argb_int(primary_color),
-                "themeColor": 0,
-                "themeColorNight": 0,
+                "primaryColorDark": hex_to_argb_int(primary_dark),
+                "themeColor": hex_to_argb_int(primary_color),
+                "themeColorNight": hex_to_argb_int(primary_dark),
                 "themeMode": "1"
             }
 
@@ -774,10 +798,11 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
         with zipfile.ZipFile(out_ts, 'w', zipfile.ZIP_DEFLATED) as zout:
             written_files = set()
             reader_theme_path = meta.get('readerTheme', {}).get('filePath', 'resources/reader_theme/theme.json')
-            reader_json = {}
-            if reader_theme_path in names:
-                reader_json = json.loads(z.read(reader_theme_path).decode('utf-8', errors='ignore'))
-            
+            reader_dark_path = meta.get('readerThemeDark', {}).get('filePath', 'resources/reader_theme_dark/theme.json')
+
+            reader_json = json.loads(z.read(reader_theme_path).decode('utf-8', errors='ignore')) if reader_theme_path in names else {}
+            reader_dark_json = json.loads(z.read(reader_dark_path).decode('utf-8', errors='ignore')) if reader_dark_path in names else {}
+
             reader_bg_path = meta.get('readerTheme', {}).get('backgroundImagePath', '')
             if not reader_bg_path and 'backgroundImage' in reader_json:
                 reader_bg_path = f"resources/reader_theme/{reader_json['backgroundImage']}"
@@ -786,10 +811,27 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
             if reader_bg_path and reader_bg_path in names:
                 bg_name = 'bg_reader.jpg'
                 safe_write_zip(zout, written_files, bg_name, z.read(reader_bg_path))
-            
+
+            reader_dark_bg_path = meta.get('readerThemeDark', {}).get('backgroundImagePath', '')
+            if not reader_dark_bg_path and 'backgroundImage' in reader_dark_json:
+                reader_dark_bg_path = f"resources/reader_theme_dark/{reader_dark_json['backgroundImage']}"
+
+            bg_dark_name = ''
+            if reader_dark_bg_path and reader_dark_bg_path in names:
+                bg_dark_name = 'bg_reader_dark.jpg'
+                safe_write_zip(zout, written_files, bg_dark_name, z.read(reader_dark_bg_path))
+
             text_color = reader_json.get('textColor', '5C5C5C')
-            if not text_color.startswith('#'):
-                text_color = '#' + text_color
+            if not text_color.startswith('#'): text_color = '#' + text_color
+
+            text_color_dark = reader_dark_json.get('textColor', reader_json.get('textColor', '474747'))
+            if not text_color_dark.startswith('#'): text_color_dark = '#' + text_color_dark
+
+            chapter_title_color = reader_json.get('chapterTitleColor', text_color)
+            if not chapter_title_color.startswith('#'): chapter_title_color = '#' + chapter_title_color
+
+            chapter_title_color_dark = reader_dark_json.get('chapterTitleColor', text_color_dark)
+            if not chapter_title_color_dark.startswith('#'): chapter_title_color_dark = '#' + chapter_title_color_dark
 
             # Copy fonts
             font_filename = ''
@@ -803,6 +845,7 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "applyHeaderStyle": True,
                 "bgAlpha": 100,
                 "bgStr": bg_name,
+                "bgStrNight": bg_dark_name,
                 "bgType": 2 if bg_name else 0,
                 "lineSpacingExtra": int(reader_json.get('themeLineSpacing', 14)),
                 "name": name,
@@ -813,8 +856,11 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "paragraphIndent": "　",
                 "paragraphSpacing": int(reader_json.get('themeParagraphSpacing', 19)),
                 "textColor": text_color,
+                "textColorNight": text_color_dark,
                 "textFont": font_filename,
                 "textSize": int(reader_json.get('bodyFontSize', 18)),
+                "titleColor": hex_to_argb_int(chapter_title_color),
+                "titleColorNight": hex_to_argb_int(chapter_title_color_dark),
                 "titleFont": font_filename
             }
 

@@ -1510,23 +1510,49 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    if (d.navIconsDarkBlobs) {
+      Object.keys(d.navIconsDarkBlobs).forEach(key => {
+        const iconObj = d.navIconsDarkBlobs[key];
+        if (iconObj && iconObj.blob) {
+          const p = `assets/navigation/${key}-selected.png`;
+          zip.file(p, iconObj.blob);
+          assetsMap[`navigation.${key}.selected`] = p;
+        }
+      });
+    }
+
     if (d.fontBlob) {
       zip.file('assets/fonts/app.ttf', d.fontBlob);
       assetsMap['font.app'] = 'assets/fonts/app.ttf';
     }
 
     const coverAlbums = [];
-    if (d.coversBlobs && d.coversBlobs.length) {
+    if ((d.coversBlobs && d.coversBlobs.length) || (d.coversDarkBlobs && d.coversDarkBlobs.length)) {
       const lightImages = [];
-      d.coversBlobs.forEach((c, i) => {
-        if (c && c.blob) {
-          const p = `cover-albums/album_0/light/image_${i}.png`;
-          zip.file(p, c.blob);
-          lightImages.push({ path: p });
-        }
-      });
-      if (lightImages.length) {
-        coverAlbums.push({ darkImages: [], lightImages, name, ref: 'album_0' });
+      const darkImages = [];
+
+      if (d.coversBlobs) {
+        d.coversBlobs.forEach((c, i) => {
+          if (c && c.blob) {
+            const p = `cover-albums/album_0/light/image_${i}.png`;
+            zip.file(p, c.blob);
+            lightImages.push({ path: p });
+          }
+        });
+      }
+
+      if (d.coversDarkBlobs) {
+        d.coversDarkBlobs.forEach((c, i) => {
+          if (c && c.blob) {
+            const p = `cover-albums/album_0/dark/image_${i}.png`;
+            zip.file(p, c.blob);
+            darkImages.push({ path: p });
+          }
+        });
+      }
+
+      if (lightImages.length || darkImages.length) {
+        coverAlbums.push({ darkImages, lightImages, name, ref: 'album_0' });
       }
     }
 
@@ -1559,10 +1585,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const zip = new JSZip();
     const name = getItemExportName(item);
     let bgFilename = '';
+    let bgDarkFilename = '';
 
     if (r.bgBlob) {
       bgFilename = 'bg_reader.jpg';
       zip.file(bgFilename, r.bgBlob);
+    }
+    if (r.bgDarkBlob) {
+      bgDarkFilename = 'bg_reader_dark.jpg';
+      zip.file(bgDarkFilename, r.bgDarkBlob);
     }
 
     if (r.extraFiles) {
@@ -1585,6 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       readConfig = { ...r.readConfig };
       readConfig.name = name;
       if (bgFilename) readConfig.bgStr = bgFilename;
+      if (bgDarkFilename) readConfig.bgStrNight = bgDarkFilename;
       if (detectedFont) {
         if (!readConfig.textFont) readConfig.textFont = detectedFont;
         if (!readConfig.titleFont) readConfig.titleFont = detectedFont;
