@@ -150,7 +150,7 @@ def convert_red_to_md3_ui(input_path, output_path):
             "baseCardBorderWidth": 1.0,
             "baseCardCornerRadius": 16.0,
             "bgImageBlurring": 3,
-            "bgImageNBlurring": 0,
+            "bgImageNBlurring": 3,
             "bookInfoBackgroundBlur": "on",
             "bookInfoDefaultCoverBackground": "on",
             "bookInfoFollowCoverColor": True,
@@ -172,7 +172,7 @@ def convert_red_to_md3_ui(input_path, output_path):
             "coverInfoOrientation": "0",
             "coverLoadOnlyWifi": False,
             "coverShadowColor": -16777216,
-            "coverShadowColorN": -1,
+            "coverShadowColorN": -16777216,
             "coverShowAuthor": True,
             "coverShowAuthorN": True,
             "coverShowName": False,
@@ -751,6 +751,8 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
 
             # Primary colors
             primary_dark = colors.get('20', colors.get('22', primary_color))
+            text_light = colors.get('12', '#000000FF')
+            text_dark = colors.get('11', '#FFFFFFFF')
 
             config = {
                 "appColumnBackgroundOpacity": 100,
@@ -777,6 +779,8 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "cardMode": 0,
                 "cNPrimary": hex_to_argb_int(primary_dark),
                 "cPrimary": hex_to_argb_int(primary_color),
+                "coverShadowColor": -16777216,
+                "coverShadowColorN": -16777216,
                 "customAppThemeColor": hex_to_argb_int(primary_color),
                 "customAppThemeColorDark": hex_to_argb_int(primary_dark),
                 "customCoverBorderRadius": 8.0,
@@ -784,6 +788,12 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "enableProgressiveBlur": True,
                 "primaryColor": hex_to_argb_int(primary_color),
                 "primaryColorDark": hex_to_argb_int(primary_dark),
+                "primaryTextColor": hex_to_argb_int(text_light),
+                "primaryTextColorNight": hex_to_argb_int(text_dark),
+                "secondaryThemeColor": hex_to_argb_int(primary_color),
+                "secondaryThemeColorNight": hex_to_argb_int(primary_dark),
+                "themeBackgroundColor": hex_to_argb_int(card_color),
+                "themeBackgroundColorNight": hex_to_argb_int(card_color_dark),
                 "themeColor": hex_to_argb_int(primary_color),
                 "themeColorNight": hex_to_argb_int(primary_dark),
                 "themeMode": "1"
