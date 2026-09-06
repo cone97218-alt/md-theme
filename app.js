@@ -319,6 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const item of newItems) {
       try {
         await parseFile(item);
+        if (state.activeId === item.id) {
+          applyPreview(item);
+        }
       } catch (err) {
         console.error('[handleFiles parse error]', item.name, err);
         item.status = 'error';
@@ -326,12 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (newItems.length > 0) {
-      const firstReady = newItems.find(i => i.status === 'ready') || newItems[0];
-      if (!state.activeId || !state.queue.find(q => q.id === state.activeId)) {
-        selectItem(firstReady.id);
-      } else {
-        renderQueue();
-      }
+      const activeItem = state.queue.find(q => q.id === state.activeId) || newItems.find(i => i.status === 'ready') || newItems[0];
+      selectItem(activeItem.id);
     } else {
       renderQueue();
     }
@@ -1052,6 +1051,9 @@ document.addEventListener('DOMContentLoaded', () => {
     item.parsedReader = readerData;
     item.status = 'ready';
     renderQueue();
+    if (state.activeId === item.id) {
+      applyPreview(item);
+    }
   }
 
   function newParsedUi(name, type, primaryColor = '#FF8909', primaryColorDark = '#F5F5F5', cardColor = '#FFFFFF', cardColorDark = '#171719') {
