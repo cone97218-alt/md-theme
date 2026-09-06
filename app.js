@@ -478,6 +478,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const zip = await JSZip.loadAsync(item.file);
       const names = Object.keys(zip.files);
 
+      // Check if file is .rgshare (Reeden / Reader Go Share Bundle v2)
+      if (names.includes('meta.json') && names.some(n => n.includes('reader_theme'))) {
+        await extractRgShare(zip, item);
+        return;
+      }
+
       // Check App UI components
       if (names.includes('theme.json')) {
         item.hasUi = true;
@@ -877,6 +883,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return r;
+  }
+
+  // Extract App UI and Reader Typesetting from .rgshare
+  async function extractRgShare(zip, item) {
+    const names = Object.keys(zip.files);
+    let meta = {};
+    let themeData = {};
+
+    if (names.includes('meta.json')) {
+      try { meta = JSON.parse(await zip.file('meta.json').async('text')); } catch(e){}
+    }
+    if (names.includes('theme.json')) {
+      try { themeData = JSON.parse(await zip.file('theme.json').async('text')); } catch(e){}
+    }
+
+    const themeName = (themeData["1"] || meta.appTheme?.name || item.name.replace(/\.rgshare$/i, '')).replace(/[\r\n\t]/g, '').trim();
+    const colors = themeData["2"] || {};
+    const primaryColor = colors["6"] ? ('#' + colors["6"].slice(0, 6)) : '#716758';
+    const cardColor = colors["8"] ? ('#' + colors["8"].slice(0, 6)) : '#E8E3CD';
+    const cardColorDark = colors["10"] ? ('#' + colors["10"].slice(0, 6)) : '#1C1C1E';
+
+    const uiData = newParsedUi(themeName, 'rgshare', primaryColor, '#F5F5F5', cardColor, cardColorDark);
+
+    // App UI Background Image
+    const bgFiles = meta.appTheme?.backgroundImageFiles || [];
+    let bgTarget = bgFiles.find(f => names.includes(f)) || names.find(n => n.startsWith('images/') && /\.(jpg|jpeg|png)$/i.test(n));
+    if (bgTarget && zip.file(bgTarget)) {
+      const blob = await zip.file(bgTarget).async('blob');
+      uiData.bgBlob = blob;
+      uiData.bgBlobUrl = URL.createObjectURL(blob);
+    }
+
+    // Tabbar Icons
+    const tabbarFiles = meta.tabBarProfile?.files || names.filter(n => n.includes('resources/tabbar/') && n.endsWith('.png'));
+    const NAV_MAP = { shelf: 'bookshelf', library: 'explore', statistic: 'rss', mine: 'my', home: 'home' };
+    for (const tf of tabbarFiles) {
+      if (zip.file(tf)) {
+        const tfName = tf.split('/').pop().toLowerCase();
+        for (const [key, navKey] of Object.entries(NAV_MAP)) {
+          if (tfName.includes(key) && tfName.includes('normal')) {
+            const blob = await zip.file(tf).async('blob');
+            uiData.navIconsBlobs[navKey] = { blob, url: URL.createObjectURL(blob) };
+            break;
+          }
+        }
+      }
+    }
+
+    // Book Covers
+    const coverFiles = meta.cover?.files || names.filter(n => n.includes('resources/cover/') && /\.(jpg|jpeg|png)$/i.test(n));
+    for (const cf of coverFiles) {
+      if (zip.file(cf)) {
+        const blob = await zip.file(cf).async('blob');
+        uiData.coversBlobs.push({ blob, url: URL.createObjectURL(blob) });
+      }
+    }
+
+    item.hasUi = true;
+    item.parsedUi = uiData;
+
+    // Reader Typesetting
+    const readerThemePath = meta.readerTheme?.filePath || 'resources/reader_theme/theme.json';
+    let readerJson = {};
+    if (names.includes(readerThemePath)) {
+      try { readerJson = JSON.parse(await zip.file(readerThemePath).async('text')); } catch(e){}
+    }
+
+    let readerBgPath = meta.readerTheme?.backgroundImagePath || (readerJson.backgroundImage ? `resources/reader_theme/${readerJson.backgroundImage}` : '');
+    let bgReaderBlob = null;
+    let bgReaderUrl = null;
+
+    if (readerBgPath && zip.file(readerBgPath)) {
+      bgReaderBlob = await zip.file(readerBgPath).async('blob');
+      bgReaderUrl = URL.createObjectURL(bgReaderBlob);
+    }
+
+    let textColor = readerJson.textColor || '5C5C5C';
+    if (!textColor.startsWith('#')) textColor = '#' + textColor;
+
+    const extraFiles = {};
+    for (const fn of names) {
+      if (/\.(ttf|otf|woff|woff2|ttc)$/i.test(fn) && !zip.files[fn].dir) {
+        const baseFn = fn.split('/').pop();
+        extraFiles[baseFn] = await zip.file(fn).async('blob');
+      }
+    }
+
+    const readerData = {
+      name: themeName,
+      textColor: textColor,
+      backgroundColor: readerJson.backgroundColor ? ('#' + readerJson.backgroundColor) : '#FFFFFF',
+      bgBlob: bgReaderBlob,
+      bgBlobUrl: bgReaderUrl,
+      layoutConfig: {
+        fontSize: readerJson.bodyFontSize || 18,
+        lineSpacing: readerJson.themeLineSpacing || 14,
+        paragraphSpacing: readerJson.themeParagraphSpacing || 19,
+        paddingTop: readerJson.themePaddingTop || 24,
+        paddingLeft: readerJson.themePaddingLeft || 43,
+        paddingRight: readerJson.themePaddingRight || 49,
+        paddingBottom: readerJson.themePaddingBottom || 19
+      },
+      extraFiles
+    };
+
+    item.hasReader = true;
+    item.parsedReader = readerData;
+    item.status = 'ready';
+    renderQueue();
   }
 
   function newParsedUi(name, type, primaryColor = '#FF8909', primaryColorDark = '#F5F5F5', cardColor = '#FFFFFF', cardColorDark = '#171719') {

@@ -31,7 +31,9 @@ def hex_to_argb_int(hex_str):
 def detect_theme_type(z):
     names = z.namelist()
     types = []
-    if 'theme.json' in names:
+    if 'meta.json' in names and any('reader_theme' in n for n in names):
+        types.append('rgshare')
+    if 'theme.json' in names and 'meta.json' not in names:
         types.append('red_ui')
     if any('reader_schema' in n for n in names):
         types.append('red_typesetting')
@@ -652,6 +654,173 @@ def convert_red_v2_to_md3(input_path, output_dir, base_name):
 
     return True
 
+def convert_rgshare_to_md3(input_path, output_dir, base_name):
+    print(f"[RGSHARE -> MD3] Processing: {input_path}")
+    with zipfile.ZipFile(input_path, 'r') as z:
+        names = z.namelist()
+        meta = json.loads(z.read('meta.json').decode('utf-8', errors='ignore')) if 'meta.json' in names else {}
+        theme_data = json.loads(z.read('theme.json').decode('utf-8', errors='ignore')) if 'theme.json' in names else {}
+        
+        name = theme_data.get('1', base_name)
+        colors = theme_data.get('2', {})
+        primary_color = colors.get('6', '#716758FF')
+        card_color = colors.get('8', '#E8E3CDFF')
+        card_color_dark = colors.get('10', '#1C1C1EFF')
+
+        # 1. UI Export
+        out_ui = os.path.join(output_dir, f"{base_name}_应用界面.md3.zip")
+        with zipfile.ZipFile(out_ui, 'w', zipfile.ZIP_DEFLATED) as zout:
+            written_files = set()
+            assets_map = {}
+
+            bg_files = meta.get('appTheme', {}).get('backgroundImageFiles', [])
+            bg_target = ''
+            for bgf in bg_files:
+                if bgf in names:
+                    bg_target = bgf
+                    break
+            if not bg_target:
+                for n in names:
+                    if n.startswith('images/') and n.lower().endswith(('.jpg', '.png', '.jpeg')):
+                        bg_target = n
+                        break
+
+            if bg_target:
+                out_bg = 'assets/background/light.jpg'
+                safe_write_zip(zout, written_files, out_bg, z.read(bg_target))
+                assets_map['background.light'] = out_bg
+
+            # Nav icons
+            tabbar_files = meta.get('tabBarProfile', {}).get('files', [])
+            if not tabbar_files:
+                tabbar_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
+            
+            nav_map = {'shelf': 'bookshelf', 'library': 'explore', 'statistic': 'rss', 'mine': 'my', 'home': 'home'}
+            for tf in tabbar_files:
+                if tf in names:
+                    tf_name = os.path.basename(tf).lower()
+                    for key, nav_key in nav_map.items():
+                        if key in tf_name and 'normal' in tf_name:
+                            out_icon = f'assets/navigation/{nav_key}.png'
+                            safe_write_zip(zout, written_files, out_icon, z.read(tf))
+                            assets_map[f'navigation.{nav_key}'] = out_icon
+                            break
+
+            # Covers
+            cover_files = meta.get('cover', {}).get('files', [])
+            if not cover_files:
+                cover_files = [n for n in names if 'resources/cover/' in n and n.lower().endswith(('.jpg', '.png'))]
+            
+            cover_albums = []
+            if cover_files:
+                light_images = []
+                for i, cf in enumerate(cover_files):
+                    if cf in names:
+                        out_cov = f'cover-albums/album_0/light/image_{i}.png'
+                        safe_write_zip(zout, written_files, out_cov, z.read(cf))
+                        light_images.append({'path': out_cov})
+                if light_images:
+                    cover_albums.append({'darkImages': [], 'lightImages': light_images, 'name': name, 'ref': 'album_0'})
+
+            config = {
+                "appColumnBackgroundOpacity": 100,
+                "appTheme": "12",
+                "baseCardBorderColor": 0,
+                "baseCardBorderColorNight": 0,
+                "baseCardBorderWidth": 1.0,
+                "baseCardCornerRadius": 16.0,
+                "bgImageBlurring": 3,
+                "bgImageNBlurring": 0,
+                "bookInfoBackgroundBlur": "on",
+                "bookInfoDefaultCoverBackground": "on",
+                "bookInfoFollowCoverColor": True,
+                "bookInfoInputColor": 0,
+                "bookInfoNetworkCoverBackground": "on",
+                "bookshelfCardColor": hex_to_argb_int(card_color),
+                "bookshelfCardColorDark": hex_to_argb_int(card_color_dark),
+                "bottomBarBlurAlpha": 40,
+                "bottomBarBlurRadius": 20,
+                "cardBackgroundAlpha": 100,
+                "cardBackgroundAlphaDark": 100,
+                "cardElevation": 0,
+                "cardElevationDark": 0,
+                "cardMode": 0,
+                "customAppThemeColor": hex_to_argb_int(primary_color),
+                "customAppThemeColorDark": hex_to_argb_int(primary_color),
+                "customCoverBorderRadius": 8.0,
+                "primaryColor": hex_to_argb_int(primary_color),
+                "primaryColorDark": hex_to_argb_int(primary_color),
+                "themeColor": 0,
+                "themeColorNight": 0,
+                "themeMode": "1"
+            }
+
+            manifest = {
+                "assets": assets_map,
+                "config": config,
+                "coverAlbums": cover_albums,
+                "coverSelection": {"albumRef": "album_0"} if cover_albums else {},
+                "formatVersion": 1,
+                "name": name
+            }
+
+            safe_write_zip(zout, written_files, 'manifest.json', json.dumps(manifest, indent=2, ensure_ascii=False).encode('utf-8'))
+            print(f"[RGSHARE -> MD3 App UI] Saved to: {out_ui}")
+
+        # 2. Reader Typesetting Export
+        out_ts = os.path.join(output_dir, f"{base_name}_阅读排版.md3.zip")
+        with zipfile.ZipFile(out_ts, 'w', zipfile.ZIP_DEFLATED) as zout:
+            written_files = set()
+            reader_theme_path = meta.get('readerTheme', {}).get('filePath', 'resources/reader_theme/theme.json')
+            reader_json = {}
+            if reader_theme_path in names:
+                reader_json = json.loads(z.read(reader_theme_path).decode('utf-8', errors='ignore'))
+            
+            reader_bg_path = meta.get('readerTheme', {}).get('backgroundImagePath', '')
+            if not reader_bg_path and 'backgroundImage' in reader_json:
+                reader_bg_path = f"resources/reader_theme/{reader_json['backgroundImage']}"
+            
+            bg_name = ''
+            if reader_bg_path and reader_bg_path in names:
+                bg_name = 'bg_reader.jpg'
+                safe_write_zip(zout, written_files, bg_name, z.read(reader_bg_path))
+            
+            text_color = reader_json.get('textColor', '5C5C5C')
+            if not text_color.startswith('#'):
+                text_color = '#' + text_color
+
+            # Copy fonts
+            font_filename = ''
+            for n in names:
+                if n.lower().endswith(('.ttf', '.otf', '.woff', '.woff2')) and not z.getinfo(n).is_dir():
+                    font_filename = os.path.basename(n)
+                    safe_write_zip(zout, written_files, font_filename, z.read(n))
+                    break
+
+            read_config = {
+                "applyHeaderStyle": True,
+                "bgAlpha": 100,
+                "bgStr": bg_name,
+                "bgType": 2 if bg_name else 0,
+                "lineSpacingExtra": int(reader_json.get('themeLineSpacing', 14)),
+                "name": name,
+                "paddingBottom": int(reader_json.get('themePaddingBottom', 19)),
+                "paddingLeft": int(reader_json.get('themePaddingLeft', 43)),
+                "paddingRight": int(reader_json.get('themePaddingRight', 49)),
+                "paddingTop": int(reader_json.get('themePaddingTop', 24)),
+                "paragraphIndent": "　",
+                "paragraphSpacing": int(reader_json.get('themeParagraphSpacing', 19)),
+                "textColor": text_color,
+                "textFont": font_filename,
+                "textSize": int(reader_json.get('bodyFontSize', 18)),
+                "titleFont": font_filename
+            }
+
+            safe_write_zip(zout, written_files, 'readConfig.json', json.dumps(read_config, indent=2, ensure_ascii=False).encode('utf-8'))
+            print(f"[RGSHARE -> MD3 Reader] Saved to: {out_ts}")
+
+    return True
+
 def auto_convert(input_path, output_dir=None):
     if not os.path.exists(input_path):
         print(f"Error: File not found {input_path}")
@@ -675,8 +844,10 @@ def auto_convert(input_path, output_dir=None):
     except Exception as e:
         print(f"[Fallback] Zip open failed, trying RED v2 parser: {e}")
         return convert_red_v2_to_md3(input_path, output_dir, base_name)
-        
-    if 'red_ui' in types or 'red_typesetting' in types:
+
+    if 'rgshare' in types:
+        return convert_rgshare_to_md3(input_path, output_dir, base_name)
+    elif 'red_ui' in types or 'red_typesetting' in types:
         if 'red_ui' in types:
             out_ui = os.path.join(output_dir, f"{base_name}_应用界面.md3.zip")
             convert_red_to_md3_ui(input_path, out_ui)
