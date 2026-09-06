@@ -921,8 +921,8 @@ document.addEventListener('DOMContentLoaded', () => {
       uiData.bgDarkBlobUrl = URL.createObjectURL(blob);
     }
 
-    // Light Tabbar Icons
-    const tabbarFiles = meta.tabBarProfile?.files || names.filter(n => n.includes('resources/tabbar/') && !n.includes('tabbar_dark') && n.endsWith('.png'));
+    // Day Tabbar Icons (Warm Sepia = tabBarProfileDark)
+    const tabbarFiles = meta.tabBarProfileDark?.files || names.filter(n => n.includes('resources/tabbar_dark/') && n.endsWith('.png'));
     const NAV_MAP = { shelf: 'bookshelf', library: 'explore', statistic: 'rss', mine: 'my', home: 'home' };
     for (const tf of tabbarFiles) {
       if (zip.file(tf)) {
@@ -937,9 +937,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Dark Tabbar Icons
+    // Night Tabbar Icons (Cool Gray = tabBarProfile)
     uiData.navIconsDarkBlobs = {};
-    const tabbarDarkFiles = meta.tabBarProfileDark?.files || names.filter(n => n.includes('resources/tabbar_dark/') && n.endsWith('.png'));
+    const tabbarDarkFiles = meta.tabBarProfile?.files || names.filter(n => n.includes('resources/tabbar/') && !n.includes('tabbar_dark') && n.endsWith('.png'));
     for (const tf of tabbarDarkFiles) {
       if (zip.file(tf)) {
         const tfName = tf.split('/').pop().toLowerCase();
@@ -953,8 +953,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Light Book Covers
-    const coverFiles = meta.cover?.files || names.filter(n => n.includes('resources/cover/') && !n.includes('cover_dark') && /\.(jpg|jpeg|png)$/i.test(n));
+    // Day Book Covers (Warm Sepia = coverDark)
+    const coverFiles = meta.coverDark?.files || names.filter(n => n.includes('resources/cover_dark/') && /\.(jpg|jpeg|png)$/i.test(n));
     for (const cf of coverFiles) {
       if (zip.file(cf)) {
         const blob = await zip.file(cf).async('blob');
@@ -962,9 +962,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Dark Book Covers
+    // Night Book Covers (Cool Gray = cover)
     uiData.coversDarkBlobs = [];
-    const coverDarkFiles = meta.coverDark?.files || names.filter(n => n.includes('resources/cover_dark/') && /\.(jpg|jpeg|png)$/i.test(n));
+    const coverDarkFiles = meta.cover?.files || names.filter(n => n.includes('resources/cover/') && !n.includes('cover_dark') && /\.(jpg|jpeg|png)$/i.test(n));
     for (const cf of coverDarkFiles) {
       if (zip.file(cf)) {
         const blob = await zip.file(cf).async('blob');

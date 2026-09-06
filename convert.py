@@ -691,30 +691,27 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 safe_write_zip(zout, written_files, out_dark_bg, z.read(cool_bg))
                 assets_map['background.dark'] = out_dark_bg
 
-            # Nav icons (normal & selected)
-            tabbar_files = meta.get('tabBarProfileDark', {}).get('files', [])
-            if not tabbar_files:
-                tabbar_files = [n for n in names if 'resources/tabbar_dark/' in n and n.endswith('.png')]
-            if not tabbar_files:
-                tabbar_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
+            # Nav icons (Day = tabBarProfileDark [Warm Sepia], Night = tabBarProfile [Cool Gray])
+            tabbar_day_files = meta.get('tabBarProfileDark', {}).get('files', [])
+            if not tabbar_day_files:
+                tabbar_day_files = [n for n in names if 'resources/tabbar_dark/' in n and n.endswith('.png')]
 
-            tabbar_cool_files = meta.get('tabBarProfile', {}).get('files', [])
-            if not tabbar_cool_files:
-                tabbar_cool_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
+            tabbar_night_files = meta.get('tabBarProfile', {}).get('files', [])
+            if not tabbar_night_files:
+                tabbar_night_files = [n for n in names if 'resources/tabbar/' in n and not 'tabbar_dark' in n and n.endswith('.png')]
 
             nav_map = {'shelf': 'bookshelf', 'library': 'explore', 'statistic': 'rss', 'mine': 'my', 'home': 'home'}
-            for tf in tabbar_files:
+            for tf in tabbar_day_files:
                 if tf in names:
                     tf_name = os.path.basename(tf).lower()
                     for key, nav_key in nav_map.items():
-                        if key in tf_name:
-                            if 'normal' in tf_name:
-                                out_icon = f'assets/navigation/{nav_key}.png'
-                                safe_write_zip(zout, written_files, out_icon, z.read(tf))
-                                assets_map[f'navigation.{nav_key}'] = out_icon
+                        if key in tf_name and 'normal' in tf_name:
+                            out_icon = f'assets/navigation/{nav_key}.png'
+                            safe_write_zip(zout, written_files, out_icon, z.read(tf))
+                            assets_map[f'navigation.{nav_key}'] = out_icon
                             break
 
-            for tf in tabbar_cool_files:
+            for tf in tabbar_night_files:
                 if tf in names:
                     tf_name = os.path.basename(tf).lower()
                     for key, nav_key in nav_map.items():
@@ -724,28 +721,26 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                             assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
                             break
 
-            # Covers (Day = Warm, Night = Cool)
-            cover_warm_files = meta.get('coverDark', {}).get('files', [])
-            if not cover_warm_files:
-                cover_warm_files = [n for n in names if 'resources/cover_dark/' in n and n.lower().endswith(('.jpg', '.png'))]
-            if not cover_warm_files:
-                cover_warm_files = [n for n in names if 'resources/cover/' in n and n.lower().endswith(('.jpg', '.png'))]
+            # Covers (Day = coverDark [Warm Sepia], Night = cover [Cool Gray])
+            cover_day_files = meta.get('coverDark', {}).get('files', [])
+            if not cover_day_files:
+                cover_day_files = [n for n in names if 'resources/cover_dark/' in n and n.lower().endswith(('.jpg', '.png'))]
 
-            cover_cool_files = meta.get('cover', {}).get('files', [])
-            if not cover_cool_files:
-                cover_cool_files = [n for n in names if 'resources/cover/' in n and not 'cover_dark' in n and n.lower().endswith(('.jpg', '.png'))]
+            cover_night_files = meta.get('cover', {}).get('files', [])
+            if not cover_night_files:
+                cover_night_files = [n for n in names if 'resources/cover/' in n and not 'cover_dark' in n and n.lower().endswith(('.jpg', '.png'))]
 
             cover_albums = []
             light_images = []
             dark_images = []
 
-            for i, cf in enumerate(cover_warm_files):
+            for i, cf in enumerate(cover_day_files):
                 if cf in names:
                     out_cov = f'cover-albums/album_0/light/image_{i}.png'
                     safe_write_zip(zout, written_files, out_cov, z.read(cf))
                     light_images.append({'path': out_cov})
 
-            for i, cf in enumerate(cover_cool_files):
+            for i, cf in enumerate(cover_night_files):
                 if cf in names:
                     out_cov_dark = f'cover-albums/album_0/dark/image_{i}.png'
                     safe_write_zip(zout, written_files, out_cov_dark, z.read(cf))
