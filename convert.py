@@ -701,25 +701,53 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 tabbar_night_files = [n for n in names if 'resources/tabbar/' in n and not 'tabbar_dark' in n and n.endswith('.png')]
 
             nav_map = {'shelf': 'bookshelf', 'library': 'explore', 'statistic': 'rss', 'mine': 'my', 'home': 'home'}
+
+            # Day Mode Icons (normal + selected)
             for tf in tabbar_day_files:
                 if tf in names:
                     tf_name = os.path.basename(tf).lower()
                     for key, nav_key in nav_map.items():
-                        if key in tf_name and 'normal' in tf_name:
-                            out_icon = f'assets/navigation/{nav_key}.png'
-                            safe_write_zip(zout, written_files, out_icon, z.read(tf))
-                            assets_map[f'navigation.{nav_key}'] = out_icon
-                            break
+                        if key in tf_name:
+                            if 'normal' in tf_name:
+                                out_icon = f'assets/navigation/{nav_key}.png'
+                                safe_write_zip(zout, written_files, out_icon, z.read(tf))
+                                assets_map[f'navigation.{nav_key}'] = out_icon
+                                break
+                            elif 'selected' in tf_name:
+                                out_icon_sel = f'assets/navigation/{nav_key}-selected.png'
+                                safe_write_zip(zout, written_files, out_icon_sel, z.read(tf))
+                                assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
+                                break
 
+            # Day mode selected icon fallback
+            for nav_key in nav_map.values():
+                if f'navigation.{nav_key}' in assets_map and f'navigation.{nav_key}.selected' not in assets_map:
+                    assets_map[f'navigation.{nav_key}.selected'] = assets_map[f'navigation.{nav_key}']
+
+            # Night Mode Icons (normal + selected)
             for tf in tabbar_night_files:
                 if tf in names:
                     tf_name = os.path.basename(tf).lower()
                     for key, nav_key in nav_map.items():
-                        if key in tf_name and 'normal' in tf_name:
-                            out_icon_sel = f'assets/navigation/{nav_key}-selected.png'
-                            safe_write_zip(zout, written_files, out_icon_sel, z.read(tf))
-                            assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
-                            break
+                        if key in tf_name:
+                            if 'normal' in tf_name:
+                                out_icon_dark = f'assets/navigation/dark/{nav_key}.png'
+                                safe_write_zip(zout, written_files, out_icon_dark, z.read(tf))
+                                assets_map[f'navigation.{nav_key}.dark'] = out_icon_dark
+                                assets_map[f'navigation.{nav_key}.night'] = out_icon_dark
+                                break
+                            elif 'selected' in tf_name:
+                                out_icon_dark_sel = f'assets/navigation/dark/{nav_key}-selected.png'
+                                safe_write_zip(zout, written_files, out_icon_dark_sel, z.read(tf))
+                                assets_map[f'navigation.{nav_key}.selected.dark'] = out_icon_dark_sel
+                                assets_map[f'navigation.{nav_key}.selected.night'] = out_icon_dark_sel
+                                break
+
+            # Night mode selected icon fallback
+            for nav_key in nav_map.values():
+                if f'navigation.{nav_key}.dark' in assets_map and f'navigation.{nav_key}.selected.dark' not in assets_map:
+                    assets_map[f'navigation.{nav_key}.selected.dark'] = assets_map[f'navigation.{nav_key}.dark']
+                    assets_map[f'navigation.{nav_key}.selected.night'] = assets_map[f'navigation.{nav_key}.dark']
 
             # Covers (Day = coverDark [Warm Sepia], Night = cover [Cool Gray])
             cover_day_files = meta.get('coverDark', {}).get('files', [])

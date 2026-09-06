@@ -922,16 +922,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Day Tabbar Icons (Warm Sepia = tabBarProfileDark)
+    uiData.navIconsBlobs = {};
     const tabbarFiles = meta.tabBarProfileDark?.files || names.filter(n => n.includes('resources/tabbar_dark/') && n.endsWith('.png'));
     const NAV_MAP = { shelf: 'bookshelf', library: 'explore', statistic: 'rss', mine: 'my', home: 'home' };
     for (const tf of tabbarFiles) {
       if (zip.file(tf)) {
         const tfName = tf.split('/').pop().toLowerCase();
         for (const [key, navKey] of Object.entries(NAV_MAP)) {
-          if (tfName.includes(key) && tfName.includes('normal')) {
-            const blob = await zip.file(tf).async('blob');
-            uiData.navIconsBlobs[navKey] = { blob, url: URL.createObjectURL(blob) };
-            break;
+          if (tfName.includes(key)) {
+            const isSelected = tfName.includes('selected');
+            const isNormal = tfName.includes('normal');
+            if (isNormal || isSelected) {
+              const blob = await zip.file(tf).async('blob');
+              const url = URL.createObjectURL(blob);
+              if (!uiData.navIconsBlobs[navKey]) uiData.navIconsBlobs[navKey] = {};
+              if (isSelected) {
+                uiData.navIconsBlobs[navKey].selectedBlob = blob;
+                uiData.navIconsBlobs[navKey].selectedUrl = url;
+              } else {
+                uiData.navIconsBlobs[navKey].blob = blob;
+                uiData.navIconsBlobs[navKey].url = url;
+              }
+              break;
+            }
           }
         }
       }
@@ -944,10 +957,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (zip.file(tf)) {
         const tfName = tf.split('/').pop().toLowerCase();
         for (const [key, navKey] of Object.entries(NAV_MAP)) {
-          if (tfName.includes(key) && tfName.includes('normal')) {
-            const blob = await zip.file(tf).async('blob');
-            uiData.navIconsDarkBlobs[navKey] = { blob, url: URL.createObjectURL(blob) };
-            break;
+          if (tfName.includes(key)) {
+            const isSelected = tfName.includes('selected');
+            const isNormal = tfName.includes('normal');
+            if (isNormal || isSelected) {
+              const blob = await zip.file(tf).async('blob');
+              const url = URL.createObjectURL(blob);
+              if (!uiData.navIconsDarkBlobs[navKey]) uiData.navIconsDarkBlobs[navKey] = {};
+              if (isSelected) {
+                uiData.navIconsDarkBlobs[navKey].selectedBlob = blob;
+                uiData.navIconsDarkBlobs[navKey].selectedUrl = url;
+              } else {
+                uiData.navIconsDarkBlobs[navKey].blob = blob;
+                uiData.navIconsDarkBlobs[navKey].url = url;
+              }
+              break;
+            }
           }
         }
       }
@@ -1527,10 +1552,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d.navIconsBlobs) {
       Object.keys(d.navIconsBlobs).forEach(key => {
         const iconObj = d.navIconsBlobs[key];
-        if (iconObj && iconObj.blob) {
-          const p = `assets/navigation/${key}.png`;
-          zip.file(p, iconObj.blob);
-          assetsMap[`navigation.${key}`] = p;
+        if (iconObj) {
+          if (iconObj.blob) {
+            const p = `assets/navigation/${key}.png`;
+            zip.file(p, iconObj.blob);
+            assetsMap[`navigation.${key}`] = p;
+          }
+          if (iconObj.selectedBlob) {
+            const p = `assets/navigation/${key}-selected.png`;
+            zip.file(p, iconObj.selectedBlob);
+            assetsMap[`navigation.${key}.selected`] = p;
+          } else if (iconObj.blob) {
+            assetsMap[`navigation.${key}.selected`] = `assets/navigation/${key}.png`;
+          }
         }
       });
     }
@@ -1538,10 +1572,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d.navIconsDarkBlobs) {
       Object.keys(d.navIconsDarkBlobs).forEach(key => {
         const iconObj = d.navIconsDarkBlobs[key];
-        if (iconObj && iconObj.blob) {
-          const p = `assets/navigation/${key}-selected.png`;
-          zip.file(p, iconObj.blob);
-          assetsMap[`navigation.${key}.selected`] = p;
+        if (iconObj) {
+          if (iconObj.blob) {
+            const p = `assets/navigation/dark/${key}.png`;
+            zip.file(p, iconObj.blob);
+            assetsMap[`navigation.${key}.dark`] = p;
+            assetsMap[`navigation.${key}.night`] = p;
+          }
+          if (iconObj.selectedBlob) {
+            const p = `assets/navigation/dark/${key}-selected.png`;
+            zip.file(p, iconObj.selectedBlob);
+            assetsMap[`navigation.${key}.selected.dark`] = p;
+            assetsMap[`navigation.${key}.selected.night`] = p;
+          } else if (iconObj.blob) {
+            assetsMap[`navigation.${key}.selected.dark`] = `assets/navigation/dark/${key}.png`;
+            assetsMap[`navigation.${key}.selected.night`] = `assets/navigation/dark/${key}.png`;
+          }
         }
       });
     }
