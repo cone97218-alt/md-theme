@@ -674,21 +674,23 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
             assets_map = {}
 
             bg_files = meta.get('appTheme', {}).get('backgroundImageFiles', [])
-            bg_target = ''
-            for bgf in bg_files:
-                if bgf in names:
-                    bg_target = bgf
-                    break
-            if not bg_target:
+            light_bg = next((f for f in bg_files if 'light' in f and f in names), '') or next((f for f in bg_files if f in names), '')
+            dark_bg = next((f for f in bg_files if 'dark' in f and f in names), '')
+
+            if not light_bg:
                 for n in names:
                     if n.startswith('images/') and n.lower().endswith(('.jpg', '.png', '.jpeg')):
-                        bg_target = n
+                        light_bg = n
                         break
 
-            if bg_target:
+            if light_bg and light_bg in names:
                 out_bg = 'assets/background/light.jpg'
-                safe_write_zip(zout, written_files, out_bg, z.read(bg_target))
+                safe_write_zip(zout, written_files, out_bg, z.read(light_bg))
                 assets_map['background.light'] = out_bg
+            if dark_bg and dark_bg in names:
+                out_dark_bg = 'assets/background/dark.jpg'
+                safe_write_zip(zout, written_files, out_dark_bg, z.read(dark_bg))
+                assets_map['background.dark'] = out_dark_bg
 
             # Nav icons
             tabbar_files = meta.get('tabBarProfile', {}).get('files', [])

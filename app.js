@@ -904,11 +904,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // App UI Background Image
     const bgFiles = meta.appTheme?.backgroundImageFiles || [];
-    let bgTarget = bgFiles.find(f => names.includes(f)) || names.find(n => n.startsWith('images/') && /\.(jpg|jpeg|png)$/i.test(n));
-    if (bgTarget && zip.file(bgTarget)) {
-      const blob = await zip.file(bgTarget).async('blob');
+    let bgLightTarget = bgFiles.find(f => f.includes('light') && names.includes(f)) || bgFiles.find(f => names.includes(f)) || names.find(n => n.startsWith('images/') && /\.(jpg|jpeg|png)$/i.test(n));
+    let bgDarkTarget = bgFiles.find(f => f.includes('dark') && names.includes(f));
+
+    if (bgLightTarget && zip.file(bgLightTarget)) {
+      const blob = await zip.file(bgLightTarget).async('blob');
       uiData.bgBlob = blob;
       uiData.bgBlobUrl = URL.createObjectURL(blob);
+    }
+    if (bgDarkTarget && zip.file(bgDarkTarget)) {
+      const blob = await zip.file(bgDarkTarget).async('blob');
+      uiData.bgDarkBlob = blob;
     }
 
     // Tabbar Icons
@@ -1447,6 +1453,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d.bgBlob) {
       zip.file('assets/background/light.jpg', d.bgBlob);
       assetsMap['background.light'] = 'assets/background/light.jpg';
+    }
+    if (d.bgDarkBlob) {
+      zip.file('assets/background/dark.jpg', d.bgDarkBlob);
+      assetsMap['background.dark'] = 'assets/background/dark.jpg';
     }
 
     if (d.navIconsBlobs) {
