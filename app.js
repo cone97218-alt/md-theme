@@ -292,12 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
   fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
 
   async function handleFiles(files) {
-    const validFiles = Array.from(files).filter(file => {
-      const ext = file.name.split('.').pop().toLowerCase();
-      return ['red', 'zip', 'rgshare', 'rgtheme', 'rg'].includes(ext);
-    });
-
-    if (!validFiles.length) return;
+    if (!files || !files.length) return;
+    const validFiles = Array.from(files);
 
     const newItems = [];
     for (let idx = 0; idx < validFiles.length; idx++) {
@@ -900,9 +896,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const themeName = (themeData["1"] || meta.appTheme?.name || item.name.replace(/\.(rgshare|rgtheme|rg)$/i, '')).replace(/[\r\n\t]/g, '').trim();
     const colors = themeData["2"] || {};
-    const primaryColor = colors["6"] ? ('#' + colors["6"].slice(0, 6)) : '#716758';
-    const cardColor = colors["8"] ? ('#' + colors["8"].slice(0, 6)) : '#E8E3CD';
-    const cardColorDark = colors["10"] ? ('#' + colors["10"].slice(0, 6)) : '#1C1C1E';
+    const primaryColor = colors["6"] ? ('#' + String(colors["6"]).replace(/^#/, '').slice(0, 6)) : '#716758';
+    const cardColor = colors["8"] ? ('#' + String(colors["8"]).replace(/^#/, '').slice(0, 6)) : '#E8E3CD';
+    const cardColorDark = colors["10"] ? ('#' + String(colors["10"]).replace(/^#/, '').slice(0, 6)) : '#1C1C1E';
 
     const uiData = newParsedUi(themeName, 'rgshare', primaryColor, '#F5F5F5', cardColor, cardColorDark);
 
@@ -959,8 +955,11 @@ document.addEventListener('DOMContentLoaded', () => {
       bgReaderUrl = URL.createObjectURL(bgReaderBlob);
     }
 
-    let textColor = readerJson.textColor || '5C5C5C';
-    if (!textColor.startsWith('#')) textColor = '#' + textColor;
+    let rawTextColor = readerJson.textColor ? String(readerJson.textColor).trim() : '5C5C5C';
+    let textColor = rawTextColor.startsWith('#') ? rawTextColor : ('#' + rawTextColor);
+
+    let rawBgColor = readerJson.backgroundColor ? String(readerJson.backgroundColor).trim() : 'FFFFFF';
+    let backgroundColor = rawBgColor.startsWith('#') ? rawBgColor : ('#' + rawBgColor);
 
     const extraFiles = {};
     for (const fn of names) {
@@ -973,7 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const readerData = {
       name: themeName,
       textColor: textColor,
-      backgroundColor: readerJson.backgroundColor ? ('#' + readerJson.backgroundColor) : '#FFFFFF',
+      backgroundColor: backgroundColor,
       bgBlob: bgReaderBlob,
       bgBlobUrl: bgReaderUrl,
       layoutConfig: {
