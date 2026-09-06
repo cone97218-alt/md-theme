@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function handleFiles(files) {
     const validFiles = Array.from(files).filter(file => {
       const ext = file.name.split('.').pop().toLowerCase();
-      return ['red', 'zip'].includes(ext);
+      return ['red', 'zip', 'rgshare', 'rgtheme', 'rg'].includes(ext);
     });
 
     if (!validFiles.length) return;
@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         id: 'item_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 9),
         file,
         name: file.name,
-        rawType: ext === 'red' ? 'red' : 'zip',
+        rawType: ['rgshare', 'rgtheme', 'rg'].includes(ext) ? 'rgshare' : (ext === 'red' ? 'red' : 'zip'),
         hasUi: false,
         hasReader: false,
         status: 'parsing',
@@ -898,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try { themeData = JSON.parse(await zip.file('theme.json').async('text')); } catch(e){}
     }
 
-    const themeName = (themeData["1"] || meta.appTheme?.name || item.name.replace(/\.rgshare$/i, '')).replace(/[\r\n\t]/g, '').trim();
+    const themeName = (themeData["1"] || meta.appTheme?.name || item.name.replace(/\.(rgshare|rgtheme|rg)$/i, '')).replace(/[\r\n\t]/g, '').trim();
     const colors = themeData["2"] || {};
     const primaryColor = colors["6"] ? ('#' + colors["6"].slice(0, 6)) : '#716758';
     const cardColor = colors["8"] ? ('#' + colors["8"].slice(0, 6)) : '#E8E3CD';
@@ -1433,7 +1433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (item.parsedUi && item.parsedUi.name) return item.parsedUi.name;
     if (item.parsedReader && item.parsedReader.name) return item.parsedReader.name;
-    return item.name ? item.name.replace(/\.(red|zip)$/i, '') : 'MD3美化包';
+    return item.name ? item.name.replace(/\.(red|zip|rgshare|rgtheme|rg)$/i, '') : 'MD3美化包';
   }
 
   // Generate MD3 App UI Theme Blob
