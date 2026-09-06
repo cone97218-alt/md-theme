@@ -915,10 +915,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bgDarkTarget && zip.file(bgDarkTarget)) {
       const blob = await zip.file(bgDarkTarget).async('blob');
       uiData.bgDarkBlob = blob;
+      uiData.bgDarkBlobUrl = URL.createObjectURL(blob);
     }
 
-    // Tabbar Icons
-    const tabbarFiles = meta.tabBarProfile?.files || names.filter(n => n.includes('resources/tabbar/') && n.endsWith('.png'));
+    // Light Tabbar Icons
+    const tabbarFiles = meta.tabBarProfile?.files || names.filter(n => n.includes('resources/tabbar/') && !n.includes('tabbar_dark') && n.endsWith('.png'));
     const NAV_MAP = { shelf: 'bookshelf', library: 'explore', statistic: 'rss', mine: 'my', home: 'home' };
     for (const tf of tabbarFiles) {
       if (zip.file(tf)) {
@@ -933,12 +934,38 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Book Covers
-    const coverFiles = meta.cover?.files || names.filter(n => n.includes('resources/cover/') && /\.(jpg|jpeg|png)$/i.test(n));
+    // Dark Tabbar Icons
+    uiData.navIconsDarkBlobs = {};
+    const tabbarDarkFiles = meta.tabBarProfileDark?.files || names.filter(n => n.includes('resources/tabbar_dark/') && n.endsWith('.png'));
+    for (const tf of tabbarDarkFiles) {
+      if (zip.file(tf)) {
+        const tfName = tf.split('/').pop().toLowerCase();
+        for (const [key, navKey] of Object.entries(NAV_MAP)) {
+          if (tfName.includes(key) && tfName.includes('normal')) {
+            const blob = await zip.file(tf).async('blob');
+            uiData.navIconsDarkBlobs[navKey] = { blob, url: URL.createObjectURL(blob) };
+            break;
+          }
+        }
+      }
+    }
+
+    // Light Book Covers
+    const coverFiles = meta.cover?.files || names.filter(n => n.includes('resources/cover/') && !n.includes('cover_dark') && /\.(jpg|jpeg|png)$/i.test(n));
     for (const cf of coverFiles) {
       if (zip.file(cf)) {
         const blob = await zip.file(cf).async('blob');
         uiData.coversBlobs.push({ blob, url: URL.createObjectURL(blob) });
+      }
+    }
+
+    // Dark Book Covers
+    uiData.coversDarkBlobs = [];
+    const coverDarkFiles = meta.coverDark?.files || names.filter(n => n.includes('resources/cover_dark/') && /\.(jpg|jpeg|png)$/i.test(n));
+    for (const cf of coverDarkFiles) {
+      if (zip.file(cf)) {
+        const blob = await zip.file(cf).async('blob');
+        uiData.coversDarkBlobs.push({ blob, url: URL.createObjectURL(blob) });
       }
     }
 
@@ -1006,8 +1033,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Apply Preview to Phone Mockup ─────────────────────────────────
   function applyPreview(item) {
+    if (!item) return;
     const uiData = item.parsedUi;
     const readerData = item.parsedReader;
+    const isNight = state.mockupMode === 'dark';
     const displayName = themeNameInput.value.trim() || (uiData ? uiData.name : readerData ? readerData.name : item.name);
 
     previewTitle.textContent = '书架';
@@ -1015,18 +1044,28 @@ document.addEventListener('DOMContentLoaded', () => {
       themeNameInput.value = displayName;
     }
 
-    // App UI Preview
-    if (uiData && uiData.bgBlobUrl) {
-      phoneScreen.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.08), rgba(0,0,0,0.08)), url('${uiData.bgBlobUrl}')`;
+    // App UI Background Image
+    const activeBgUrl = isNight && uiData?.bgDarkBlobUrl ? uiData.bgDarkBlobUrl : uiData?.bgBlobUrl;
+    if (activeBgUrl) {
+      phoneScreen.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.08), rgba(0,0,0,0.08)), url('${activeBgUrl}')`;
     } else {
       phoneScreen.style.backgroundImage = 'none';
     }
 
+    // App UI Card Color
+    const activeCardColor = isNight && uiData?.cardColorDark ? uiData.cardColorDark : uiData?.cardColor;
+    if (phoneCard && activeCardColor) {
+      let cssColor = activeCardColor;
+      if (cssColor.length === 9 && cssColor.startsWith('#')) cssColor = '#' + cssColor.slice(3);
+      phoneCard.style.backgroundColor = cssColor;
+    }
+
     // Nav icons
+    const activeNavMap = isNight && uiData?.navIconsDarkBlobs && Object.keys(uiData.navIconsDarkBlobs).length ? uiData.navIconsDarkBlobs : uiData?.navIconsBlobs;
     Object.keys(navWrappers).forEach(key => {
       const wrap = navWrappers[key];
-      if (uiData && uiData.navIconsBlobs[key]) {
-        wrap.innerHTML = `<img src="${uiData.navIconsBlobs[key].url}" alt="${key}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">`;
+      if (activeNavMap && activeNavMap[key]) {
+        wrap.innerHTML = `<img src="${activeNavMap[key].url}" alt="${key}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">`;
       } else {
         const FA_MAP = { home: 'fa-house', bookshelf: 'fa-book-bookmark', explore: 'fa-compass', rss: 'fa-rss', my: 'fa-circle-user' };
         wrap.innerHTML = `<i class="fa-solid ${FA_MAP[key]}"></i>`;
@@ -1034,16 +1073,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Cover gallery
+    const activeCovers = isNight && uiData?.coversDarkBlobs && uiData.coversDarkBlobs.length ? uiData.coversDarkBlobs : uiData?.coversBlobs;
     galleryGrid.innerHTML = '';
-    if (uiData && uiData.coversBlobs.length) {
-      uiData.coversBlobs.forEach(c => {
+    if (activeCovers && activeCovers.length) {
+      activeCovers.forEach(c => {
         const img = document.createElement('img');
         img.className = 'gallery-item';
         img.src = c.url;
         galleryGrid.appendChild(img);
       });
-      injectCoverIntoCard('cover0Wrap', uiData.coversBlobs[0]);
-      if (uiData.coversBlobs.length > 1) injectCoverIntoCard('cover1Wrap', uiData.coversBlobs[1]);
+      injectCoverIntoCard('cover0Wrap', activeCovers[0]);
+      if (activeCovers.length > 1) injectCoverIntoCard('cover1Wrap', activeCovers[1]);
     } else {
       galleryGrid.innerHTML = `<div class="gallery-empty"><i class="fa-regular fa-image"></i><span>暂无书单封面</span></div>`;
     }
