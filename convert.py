@@ -674,29 +674,34 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
             assets_map = {}
 
             bg_files = meta.get('appTheme', {}).get('backgroundImageFiles', [])
-            light_bg = next((f for f in bg_files if 'light' in f and f in names), '') or next((f for f in bg_files if f in names), '')
-            dark_bg = next((f for f in bg_files if 'dark' in f and f in names), '')
+            warm_bg = next((f for f in bg_files if 'dark' in f and f in names), '')
+            cool_bg = next((f for f in bg_files if 'light' in f and f in names), '') or next((f for f in bg_files if f in names), '')
 
-            if not light_bg:
-                for n in names:
-                    if n.startswith('images/') and n.lower().endswith(('.jpg', '.png', '.jpeg')):
-                        light_bg = n
-                        break
+            if not warm_bg:
+                warm_bg = cool_bg
 
-            if light_bg and light_bg in names:
+            # Day mode = Warm Sepia (_dark.jpg in rgshare)
+            if warm_bg and warm_bg in names:
                 out_bg = 'assets/background/light.jpg'
-                safe_write_zip(zout, written_files, out_bg, z.read(light_bg))
+                safe_write_zip(zout, written_files, out_bg, z.read(warm_bg))
                 assets_map['background.light'] = out_bg
-            if dark_bg and dark_bg in names:
+            # Night mode = Cool Gray (_light.jpg in rgshare)
+            if cool_bg and cool_bg in names:
                 out_dark_bg = 'assets/background/dark.jpg'
-                safe_write_zip(zout, written_files, out_dark_bg, z.read(dark_bg))
+                safe_write_zip(zout, written_files, out_dark_bg, z.read(cool_bg))
                 assets_map['background.dark'] = out_dark_bg
 
             # Nav icons (normal & selected)
-            tabbar_files = meta.get('tabBarProfile', {}).get('files', [])
+            tabbar_files = meta.get('tabBarProfileDark', {}).get('files', [])
+            if not tabbar_files:
+                tabbar_files = [n for n in names if 'resources/tabbar_dark/' in n and n.endswith('.png')]
             if not tabbar_files:
                 tabbar_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
-            
+
+            tabbar_cool_files = meta.get('tabBarProfile', {}).get('files', [])
+            if not tabbar_cool_files:
+                tabbar_cool_files = [n for n in names if 'resources/tabbar/' in n and n.endswith('.png')]
+
             nav_map = {'shelf': 'bookshelf', 'library': 'explore', 'statistic': 'rss', 'mine': 'my', 'home': 'home'}
             for tf in tabbar_files:
                 if tf in names:
@@ -707,32 +712,40 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                                 out_icon = f'assets/navigation/{nav_key}.png'
                                 safe_write_zip(zout, written_files, out_icon, z.read(tf))
                                 assets_map[f'navigation.{nav_key}'] = out_icon
-                            elif 'selected' in tf_name:
-                                out_icon_sel = f'assets/navigation/{nav_key}-selected.png'
-                                safe_write_zip(zout, written_files, out_icon_sel, z.read(tf))
-                                assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
                             break
 
-            # Covers (Light & Dark)
-            cover_files = meta.get('cover', {}).get('files', [])
-            if not cover_files:
-                cover_files = [n for n in names if 'resources/cover/' in n and not 'cover_dark' in n and n.lower().endswith(('.jpg', '.png'))]
-            
-            cover_dark_files = meta.get('coverDark', {}).get('files', [])
-            if not cover_dark_files:
-                cover_dark_files = [n for n in names if 'resources/cover_dark/' in n and n.lower().endswith(('.jpg', '.png'))]
+            for tf in tabbar_cool_files:
+                if tf in names:
+                    tf_name = os.path.basename(tf).lower()
+                    for key, nav_key in nav_map.items():
+                        if key in tf_name and 'normal' in tf_name:
+                            out_icon_sel = f'assets/navigation/{nav_key}-selected.png'
+                            safe_write_zip(zout, written_files, out_icon_sel, z.read(tf))
+                            assets_map[f'navigation.{nav_key}.selected'] = out_icon_sel
+                            break
+
+            # Covers (Day = Warm, Night = Cool)
+            cover_warm_files = meta.get('coverDark', {}).get('files', [])
+            if not cover_warm_files:
+                cover_warm_files = [n for n in names if 'resources/cover_dark/' in n and n.lower().endswith(('.jpg', '.png'))]
+            if not cover_warm_files:
+                cover_warm_files = [n for n in names if 'resources/cover/' in n and n.lower().endswith(('.jpg', '.png'))]
+
+            cover_cool_files = meta.get('cover', {}).get('files', [])
+            if not cover_cool_files:
+                cover_cool_files = [n for n in names if 'resources/cover/' in n and not 'cover_dark' in n and n.lower().endswith(('.jpg', '.png'))]
 
             cover_albums = []
             light_images = []
             dark_images = []
 
-            for i, cf in enumerate(cover_files):
+            for i, cf in enumerate(cover_warm_files):
                 if cf in names:
                     out_cov = f'cover-albums/album_0/light/image_{i}.png'
                     safe_write_zip(zout, written_files, out_cov, z.read(cf))
                     light_images.append({'path': out_cov})
 
-            for i, cf in enumerate(cover_dark_files):
+            for i, cf in enumerate(cover_cool_files):
                 if cf in names:
                     out_cov_dark = f'cover-albums/album_0/dark/image_{i}.png'
                     safe_write_zip(zout, written_files, out_cov_dark, z.read(cf))
@@ -803,34 +816,36 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
             reader_json = json.loads(z.read(reader_theme_path).decode('utf-8', errors='ignore')) if reader_theme_path in names else {}
             reader_dark_json = json.loads(z.read(reader_dark_path).decode('utf-8', errors='ignore')) if reader_dark_path in names else {}
 
-            reader_bg_path = meta.get('readerTheme', {}).get('backgroundImagePath', '')
-            if not reader_bg_path and 'backgroundImage' in reader_json:
-                reader_bg_path = f"resources/reader_theme/{reader_json['backgroundImage']}"
-            
+            # Day mode = readerThemeDark (Warm Sepia)
+            reader_bg_path = meta.get('readerThemeDark', {}).get('backgroundImagePath', '')
+            if not reader_bg_path and 'backgroundImage' in reader_dark_json:
+                reader_bg_path = f"resources/reader_theme_dark/{reader_dark_json['backgroundImage']}"
+
             bg_name = ''
             if reader_bg_path and reader_bg_path in names:
                 bg_name = 'bg_reader.jpg'
                 safe_write_zip(zout, written_files, bg_name, z.read(reader_bg_path))
 
-            reader_dark_bg_path = meta.get('readerThemeDark', {}).get('backgroundImagePath', '')
-            if not reader_dark_bg_path and 'backgroundImage' in reader_dark_json:
-                reader_dark_bg_path = f"resources/reader_theme_dark/{reader_dark_json['backgroundImage']}"
+            # Night mode = readerTheme (Cool Gray)
+            reader_dark_bg_path = meta.get('readerTheme', {}).get('backgroundImagePath', '')
+            if not reader_dark_bg_path and 'backgroundImage' in reader_json:
+                reader_dark_bg_path = f"resources/reader_theme/{reader_json['backgroundImage']}"
 
             bg_dark_name = ''
             if reader_dark_bg_path and reader_dark_bg_path in names:
                 bg_dark_name = 'bg_reader_dark.jpg'
                 safe_write_zip(zout, written_files, bg_dark_name, z.read(reader_dark_bg_path))
 
-            text_color = reader_json.get('textColor', '5C5C5C')
+            text_color = reader_dark_json.get('textColor', '474747')
             if not text_color.startswith('#'): text_color = '#' + text_color
 
-            text_color_dark = reader_dark_json.get('textColor', reader_json.get('textColor', '474747'))
+            text_color_dark = reader_json.get('textColor', '5C5C5C')
             if not text_color_dark.startswith('#'): text_color_dark = '#' + text_color_dark
 
-            chapter_title_color = reader_json.get('chapterTitleColor', text_color)
+            chapter_title_color = reader_dark_json.get('chapterTitleColor', text_color)
             if not chapter_title_color.startswith('#'): chapter_title_color = '#' + chapter_title_color
 
-            chapter_title_color_dark = reader_dark_json.get('chapterTitleColor', text_color_dark)
+            chapter_title_color_dark = reader_json.get('chapterTitleColor', text_color_dark)
             if not chapter_title_color_dark.startswith('#'): chapter_title_color_dark = '#' + chapter_title_color_dark
 
             # Copy fonts
@@ -847,18 +862,18 @@ def convert_rgshare_to_md3(input_path, output_dir, base_name):
                 "bgStr": bg_name,
                 "bgStrNight": bg_dark_name,
                 "bgType": 2 if bg_name else 0,
-                "lineSpacingExtra": int(reader_json.get('themeLineSpacing', 14)),
+                "lineSpacingExtra": int(reader_dark_json.get('themeLineSpacing', reader_json.get('themeLineSpacing', 14))),
                 "name": name,
-                "paddingBottom": int(reader_json.get('themePaddingBottom', 19)),
-                "paddingLeft": int(reader_json.get('themePaddingLeft', 43)),
-                "paddingRight": int(reader_json.get('themePaddingRight', 49)),
-                "paddingTop": int(reader_json.get('themePaddingTop', 24)),
+                "paddingBottom": int(reader_dark_json.get('themePaddingBottom', 19)),
+                "paddingLeft": int(reader_dark_json.get('themePaddingLeft', 43)),
+                "paddingRight": int(reader_dark_json.get('themePaddingRight', 49)),
+                "paddingTop": int(reader_dark_json.get('themePaddingTop', 24)),
                 "paragraphIndent": "　",
-                "paragraphSpacing": int(reader_json.get('themeParagraphSpacing', 19)),
+                "paragraphSpacing": int(reader_dark_json.get('themeParagraphSpacing', 19)),
                 "textColor": text_color,
                 "textColorNight": text_color_dark,
                 "textFont": font_filename,
-                "textSize": int(reader_json.get('bodyFontSize', 18)),
+                "textSize": int(reader_dark_json.get('bodyFontSize', 18)),
                 "titleColor": hex_to_argb_int(chapter_title_color),
                 "titleColorNight": hex_to_argb_int(chapter_title_color_dark),
                 "titleFont": font_filename

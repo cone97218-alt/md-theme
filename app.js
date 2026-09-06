@@ -902,18 +902,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const uiData = newParsedUi(themeName, 'rgshare', primaryColor, '#F5F5F5', cardColor, cardColorDark);
 
-    // App UI Background Image
+    // App UI Background Image (Day = Warm Sepia _dark.jpg, Night = Cool Gray _light.jpg)
     const bgFiles = meta.appTheme?.backgroundImageFiles || [];
-    let bgLightTarget = bgFiles.find(f => f.includes('light') && names.includes(f)) || bgFiles.find(f => names.includes(f)) || names.find(n => n.startsWith('images/') && /\.(jpg|jpeg|png)$/i.test(n));
-    let bgDarkTarget = bgFiles.find(f => f.includes('dark') && names.includes(f));
+    let bgWarmTarget = bgFiles.find(f => f.includes('dark') && names.includes(f));
+    let bgCoolTarget = bgFiles.find(f => f.includes('light') && names.includes(f)) || bgFiles.find(f => names.includes(f)) || names.find(n => n.startsWith('images/') && /\.(jpg|jpeg|png)$/i.test(n));
 
-    if (bgLightTarget && zip.file(bgLightTarget)) {
-      const blob = await zip.file(bgLightTarget).async('blob');
+    if (!bgWarmTarget) bgWarmTarget = bgCoolTarget;
+
+    // Day mode uses Warm Sepia
+    if (bgWarmTarget && zip.file(bgWarmTarget)) {
+      const blob = await zip.file(bgWarmTarget).async('blob');
       uiData.bgBlob = blob;
       uiData.bgBlobUrl = URL.createObjectURL(blob);
     }
-    if (bgDarkTarget && zip.file(bgDarkTarget)) {
-      const blob = await zip.file(bgDarkTarget).async('blob');
+    // Night mode uses Cool Gray
+    if (bgCoolTarget && zip.file(bgCoolTarget)) {
+      const blob = await zip.file(bgCoolTarget).async('blob');
       uiData.bgDarkBlob = blob;
       uiData.bgDarkBlobUrl = URL.createObjectURL(blob);
     }
@@ -972,26 +976,47 @@ document.addEventListener('DOMContentLoaded', () => {
     item.hasUi = true;
     item.parsedUi = uiData;
 
-    // Reader Typesetting
+    // Reader Typesetting (Day = readerThemeDark 暖黄, Night = readerTheme 冷灰)
+    const readerDarkThemePath = meta.readerThemeDark?.filePath || 'resources/reader_theme_dark/theme.json';
     const readerThemePath = meta.readerTheme?.filePath || 'resources/reader_theme/theme.json';
+
+    let readerDarkJson = {};
+    if (names.includes(readerDarkThemePath)) {
+      try { readerDarkJson = JSON.parse(await zip.file(readerDarkThemePath).async('text')); } catch(e){}
+    }
+
     let readerJson = {};
     if (names.includes(readerThemePath)) {
       try { readerJson = JSON.parse(await zip.file(readerThemePath).async('text')); } catch(e){}
     }
 
-    let readerBgPath = meta.readerTheme?.backgroundImagePath || (readerJson.backgroundImage ? `resources/reader_theme/${readerJson.backgroundImage}` : '');
-    let bgReaderBlob = null;
-    let bgReaderUrl = null;
+    // Day mode = readerThemeDark (暖黄)
+    let readerWarmBgPath = meta.readerThemeDark?.backgroundImagePath || (readerDarkJson.backgroundImage ? `resources/reader_theme_dark/${readerDarkJson.backgroundImage}` : '');
+    let bgWarmReaderBlob = null;
+    let bgWarmReaderUrl = null;
 
-    if (readerBgPath && zip.file(readerBgPath)) {
-      bgReaderBlob = await zip.file(readerBgPath).async('blob');
-      bgReaderUrl = URL.createObjectURL(bgReaderBlob);
+    if (readerWarmBgPath && zip.file(readerWarmBgPath)) {
+      bgWarmReaderBlob = await zip.file(readerWarmBgPath).async('blob');
+      bgWarmReaderUrl = URL.createObjectURL(bgWarmReaderBlob);
     }
 
-    let rawTextColor = readerJson.textColor ? String(readerJson.textColor).trim() : '5C5C5C';
+    // Night mode = readerTheme (冷灰)
+    let readerCoolBgPath = meta.readerTheme?.backgroundImagePath || (readerJson.backgroundImage ? `resources/reader_theme/${readerJson.backgroundImage}` : '');
+    let bgCoolReaderBlob = null;
+    let bgCoolReaderUrl = null;
+
+    if (readerCoolBgPath && zip.file(readerCoolBgPath)) {
+      bgCoolReaderBlob = await zip.file(readerCoolBgPath).async('blob');
+      bgCoolReaderUrl = URL.createObjectURL(bgCoolReaderBlob);
+    }
+
+    let rawTextColor = readerDarkJson.textColor ? String(readerDarkJson.textColor).trim() : '474747';
     let textColor = rawTextColor.startsWith('#') ? rawTextColor : ('#' + rawTextColor);
 
-    let rawBgColor = readerJson.backgroundColor ? String(readerJson.backgroundColor).trim() : 'FFFFFF';
+    let rawTextColorNight = readerJson.textColor ? String(readerJson.textColor).trim() : '5C5C5C';
+    let textColorNight = rawTextColorNight.startsWith('#') ? rawTextColorNight : ('#' + rawTextColorNight);
+
+    let rawBgColor = readerDarkJson.backgroundColor ? String(readerDarkJson.backgroundColor).trim() : 'FFFFFF';
     let backgroundColor = rawBgColor.startsWith('#') ? rawBgColor : ('#' + rawBgColor);
 
     const extraFiles = {};
@@ -1005,17 +1030,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const readerData = {
       name: themeName,
       textColor: textColor,
+      textColorNight: textColorNight,
       backgroundColor: backgroundColor,
-      bgBlob: bgReaderBlob,
-      bgBlobUrl: bgReaderUrl,
+      bgBlob: bgWarmReaderBlob,
+      bgBlobUrl: bgWarmReaderUrl,
+      bgDarkBlob: bgCoolReaderBlob,
+      bgDarkBlobUrl: bgCoolReaderUrl,
       layoutConfig: {
-        fontSize: readerJson.bodyFontSize || 18,
-        lineSpacing: readerJson.themeLineSpacing || 14,
-        paragraphSpacing: readerJson.themeParagraphSpacing || 19,
-        paddingTop: readerJson.themePaddingTop || 24,
-        paddingLeft: readerJson.themePaddingLeft || 43,
-        paddingRight: readerJson.themePaddingRight || 49,
-        paddingBottom: readerJson.themePaddingBottom || 19
+        fontSize: readerDarkJson.bodyFontSize || readerJson.bodyFontSize || 18,
+        lineSpacing: readerDarkJson.themeLineSpacing || readerJson.themeLineSpacing || 14,
+        paragraphSpacing: readerDarkJson.themeParagraphSpacing || readerJson.themeParagraphSpacing || 19,
+        paddingTop: readerDarkJson.themePaddingTop || readerJson.themePaddingTop || 24,
+        paddingLeft: readerDarkJson.themePaddingLeft || readerJson.themePaddingLeft || 43,
+        paddingRight: readerDarkJson.themePaddingRight || readerJson.themePaddingRight || 49,
+        paddingBottom: readerDarkJson.themePaddingBottom || readerJson.themePaddingBottom || 19
       },
       extraFiles
     };
@@ -1093,20 +1121,15 @@ document.addEventListener('DOMContentLoaded', () => {
       readerBookName.textContent = displayName;
       readerTitleText.textContent = '第一章 序章';
 
-      if (readerData.bgBlobUrl) {
-        readerScreen.style.backgroundImage = `url('${readerData.bgBlobUrl}')`;
-      } else if (readerData.readConfig && readerData.readConfig.bgStrNight && state.mockupMode === 'dark') {
-        readerScreen.style.backgroundImage = 'none';
-        readerScreen.style.backgroundColor = readerData.readConfig.bgStrNight;
+      const activeReaderBgUrl = isNight && readerData.bgDarkBlobUrl ? readerData.bgDarkBlobUrl : readerData.bgBlobUrl;
+      if (activeReaderBgUrl) {
+        readerScreen.style.backgroundImage = `url('${activeReaderBgUrl}')`;
       } else {
         readerScreen.style.backgroundImage = 'none';
-        readerScreen.style.backgroundColor = readerData.backgroundColor || (state.mockupMode === 'dark' ? '#1e2428' : '#f4f1ec');
+        readerScreen.style.backgroundColor = readerData.backgroundColor || (isNight ? '#1e2428' : '#f4f1ec');
       }
 
-      let textColor = readerData.textColor || '#3E3D3B';
-      if (state.mockupMode === 'dark') {
-        textColor = (readerData.readConfig && readerData.readConfig.textColorNight) || '#ADADAD';
-      }
+      let textColor = isNight ? (readerData.textColorNight || '#5C5C5C') : (readerData.textColor || '#474747');
       readerScreen.style.color = textColor;
 
       const layout = readerData.layoutConfig || (readerData.readConfig || {});
